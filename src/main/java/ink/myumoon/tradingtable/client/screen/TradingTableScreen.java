@@ -9,6 +9,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -39,6 +40,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     private Button saveButton;
     private EditBox tableNameBox;
     private String savedTableNameBaseline = "";
+    private long headerScrollTime;
 
     public TradingTableScreen(TradingTableMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -60,18 +62,24 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
                 .bounds(leftX + 40, topY + 16, 36, 20)
                 .build());
 
+        Tooltip stepTooltip = Tooltip.create(Component.translatable("ui.trading_table.step.tooltip"));
+
         this.priceMinusButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> sendButton(TradingTableMenu.BUTTON_PRICE_MINUS))
                 .bounds(leftX, topY + 50 , 20, 20)
+                .tooltip(stepTooltip)
                 .build());
         this.pricePlusButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> sendButton(TradingTableMenu.BUTTON_PRICE_PLUS))
                 .bounds(leftX + 56, topY + 50, 20, 20)
+                .tooltip(stepTooltip)
                 .build());
 
         this.minMinusButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> sendButton(TradingTableMenu.BUTTON_MIN_MINUS))
                 .bounds(leftX, topY + 84, 20, 20)
+                .tooltip(stepTooltip)
                 .build());
         this.minPlusButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> sendButton(TradingTableMenu.BUTTON_MIN_PLUS))
                 .bounds(leftX + 56, topY + 84, 20, 20)
+                .tooltip(stepTooltip)
                 .build());
 
         this.enableToggleButton = this.addRenderableWidget(Button.builder(resolveEnableLabel(), b -> sendButton(TradingTableMenu.BUTTON_TOGGLE_ENABLED))
@@ -103,25 +111,44 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (scrollY != 0) {
+            int leftX = this.leftPos + PANEL_LEFT_X;
+            int topY = this.topPos + 10;
+            if (mouseX >= leftX + 20 && mouseX <= leftX + 56 && mouseY >= topY + 50 && mouseY <= topY + 70) {
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, true);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, true);
+                return true;
+            }
+            if (mouseX >= leftX + 20 && mouseX <= leftX + 56 && mouseY >= topY + 84 && mouseY <= topY + 104) {
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, true);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, true);
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.tableNameBox != null && this.tableNameBox.mouseClicked(mouseX, mouseY, button)) {
             this.setFocused(this.tableNameBox);
             return true;
         }
         if (this.handleStepClick(this.minPlusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32)) {
+                TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.minMinusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32)) {
+                TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.pricePlusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32)) {
+                TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.priceMinusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32)) {
+                TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, false)) {
             return true;
         }
         if (this.handleExtractClick(mouseX, mouseY, button)) {
@@ -189,8 +216,8 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton,
-                                    int oneId, int eightId, int thirtyTwoId) {
-        if (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY)) {
+                                    int oneId, int eightId, int thirtyTwoId, boolean bypassButtonCheck) {
+        if (!bypassButtonCheck && (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY))) {
             return false;
         }
 
@@ -292,7 +319,34 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
                 Component.literal(this.tableNameBox == null || this.tableNameBox.getValue().isBlank() ? this.title.getString() : this.tableNameBox.getValue()),
                 Component.translatable("container.trading_table.manage")
         );
-        guiGraphics.drawString(this.font, header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
+
+        int headerWidth = this.font.width(header);
+        if (headerWidth > 160) {
+            long time = net.minecraft.Util.getMillis();
+            if (this.headerScrollTime == 0) {
+                this.headerScrollTime = time;
+            }
+            long delta = time - this.headerScrollTime;
+            long pauseDuration = 1800; // 3 seconds pause
+
+            int scroll = 0;
+            if (delta > pauseDuration) {
+                scroll = (int) ((delta - pauseDuration) / 30L);
+            }
+
+            int maxScroll = headerWidth - 160;
+            if (scroll > maxScroll + 60) { // 60 frames extra pause at the end
+                this.headerScrollTime = time;
+                scroll = 0;
+            } else if (scroll > maxScroll) {
+                scroll = maxScroll;
+            }
+            guiGraphics.enableScissor(this.leftPos + 88, this.topPos + 6, this.leftPos + 88 + 160, this.topPos + 6 + 10);
+            guiGraphics.drawString(this.font, header, this.leftPos + 88 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            guiGraphics.disableScissor();
+        } else {
+            guiGraphics.drawString(this.font, header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
+        }
 
         int leftX = this.leftPos + PANEL_LEFT_X;
         guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 16, COLOR_TEXT, false);

@@ -3,7 +3,7 @@
   "block.trading_table.trading_table": "贸易台",
   "item.trading_table.trading_table": "贸易台",
   "container.trading_table.trading_table": "贸易台",
-  "container.trading_table.init": "贸易台 | 初始化",
+  "container.trading_table.init": "初始化",
   "container.trading_table.trade": "贸易界面",
   "container.trading_table.manage": "管理界面",
   "ui.trading_table.need_trade_item": "请添加贸易物品",
@@ -41,6 +41,7 @@
   "ui.trading_table.init.price": "价格",
   "ui.trading_table.init.min": "最小份数",
   "ui.trading_table.init.initialize": "初始化",
+  "ui.trading_table.step.tooltip": "按住 Shift/Ctrl 快速修改数量，或者你也可以使用鼠标滚轮。",
 
   "trading_table.configuration.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.section.trading_table.common.toml": "Harvista's Trading Table Configs",

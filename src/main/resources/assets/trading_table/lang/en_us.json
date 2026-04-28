@@ -2,10 +2,12 @@
   "itemGroup.trading_table": "Harvista's Trading Table",
   "block.trading_table.trading_table": "Trading Table",
   "item.trading_table.trading_table": "Trading Table",
+
   "container.trading_table.trading_table": "Trading Table",
-  "container.trading_table.init": "Trading Table | Initialization Screen",
+  "container.trading_table.init": "Initialization Screen",
   "container.trading_table.trade": "Trade Screen",
   "container.trading_table.manage": "Manage Screen",
+
   "ui.trading_table.need_trade_item": "Please add a trade item",
   "ui.trading_table.trade.header": "%s | %s",
   "ui.trading_table.trade.none": "-",
@@ -41,6 +43,7 @@
   "ui.trading_table.init.price": "Price",
   "ui.trading_table.init.min": "Min Unit",
   "ui.trading_table.init.initialize": "Initialize",
+  "ui.trading_table.step.tooltip": "Press Shift/Ctrl to quickly modify the quantity, or you can also use the mouse wheel.",
 
   "trading_table.configuration.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.section.trading_table.common.toml": "Harvista's Trading Table Configs",

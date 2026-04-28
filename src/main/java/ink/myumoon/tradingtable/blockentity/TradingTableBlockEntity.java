@@ -242,7 +242,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             this.unitPrice = 1L;
         }
         if (this.tableName.isBlank()) {
-            this.tableName = "Trading Table";
+            this.tableName = "";
         }
         this.setChanged();
         return true;
@@ -457,9 +457,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
                 ? Component.translatable("block.trading_table.trading_table")
                 : Component.literal(this.tableName);
         return switch (this.openMenuMode) {
-            case INIT -> Component.translatable("container.trading_table.init");
-            case TRADE -> baseName;
-            case MANAGE -> baseName;
+            case INIT, TRADE, MANAGE -> baseName;
         };
     }
 

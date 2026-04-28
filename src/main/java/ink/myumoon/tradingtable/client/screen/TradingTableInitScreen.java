@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.client.gui.components.Tooltip;
 import org.jetbrains.annotations.NotNull;
 
 public class TradingTableInitScreen extends AbstractContainerScreen<TradingTableInitMenu> {
@@ -43,6 +44,7 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     private Button priceMinusButton;
     private Button initializeButton;
     private EditBox tableNameBox;
+    private long headerScrollTime;
 
     public TradingTableInitScreen(TradingTableInitMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -72,18 +74,24 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
                 .bounds(leftX + TYPE_BUTTON_WIDTH + TYPE_BUTTON_GAP, this.topPos + TYPE_BUTTON_Y, TYPE_BUTTON_WIDTH, TYPE_BUTTON_HEIGHT)
                 .build());
 
+        Tooltip stepTooltip = Tooltip.create(Component.translatable("ui.trading_table.step.tooltip"));
+
         this.priceMinusButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> sendButton(TradingTableInitMenu.BUTTON_PRICE_MINUS))
                 .bounds(rightX, this.topPos + PRICE_ROW_Y + ROW_LABEL_OFFSET, STEP_BUTTON_WIDTH, STEP_BUTTON_HEIGHT)
+                .tooltip(stepTooltip)
                 .build());
         this.pricePlusButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> sendButton(TradingTableInitMenu.BUTTON_PRICE_PLUS))
                 .bounds(rightX + 62, this.topPos + PRICE_ROW_Y + ROW_LABEL_OFFSET, STEP_BUTTON_WIDTH, STEP_BUTTON_HEIGHT)
+                .tooltip(stepTooltip)
                 .build());
 
         this.minMinusButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> sendButton(TradingTableInitMenu.BUTTON_MIN_MINUS))
                 .bounds(rightX, this.topPos + MIN_ROW_Y + ROW_LABEL_OFFSET, STEP_BUTTON_WIDTH, STEP_BUTTON_HEIGHT)
+                .tooltip(stepTooltip)
                 .build());
         this.minPlusButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> sendButton(TradingTableInitMenu.BUTTON_MIN_PLUS))
                 .bounds(rightX + 62, this.topPos + MIN_ROW_Y + ROW_LABEL_OFFSET, STEP_BUTTON_WIDTH, STEP_BUTTON_HEIGHT)
+                .tooltip(stepTooltip)
                 .build());
 
         this.initializeButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.init.initialize"), b -> this.handleInitializeClick())
@@ -94,25 +102,47 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (scrollY != 0) {
+            int rightX = this.leftPos + RIGHT_PANEL_X;
+            if (this.isHoveringNumber(rightX, this.topPos + PRICE_ROW_Y, mouseX, mouseY)) {
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableInitMenu.BUTTON_PRICE_PLUS, TradingTableInitMenu.BUTTON_PRICE_PLUS_8, TradingTableInitMenu.BUTTON_PRICE_PLUS_32, true);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableInitMenu.BUTTON_PRICE_MINUS, TradingTableInitMenu.BUTTON_PRICE_MINUS_8, TradingTableInitMenu.BUTTON_PRICE_MINUS_32, true);
+                return true;
+            }
+            if (this.isHoveringNumber(rightX, this.topPos + MIN_ROW_Y, mouseX, mouseY)) {
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableInitMenu.BUTTON_MIN_PLUS, TradingTableInitMenu.BUTTON_MIN_PLUS_8, TradingTableInitMenu.BUTTON_MIN_PLUS_32, true);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableInitMenu.BUTTON_MIN_MINUS, TradingTableInitMenu.BUTTON_MIN_MINUS_8, TradingTableInitMenu.BUTTON_MIN_MINUS_32, true);
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    private boolean isHoveringNumber(int x, int y, double mouseX, double mouseY) {
+        return mouseX >= x + 18 && mouseX <= x + 62 && mouseY >= y + ROW_LABEL_OFFSET && mouseY <= y + ROW_LABEL_OFFSET + 18;
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.tableNameBox != null && this.tableNameBox.mouseClicked(mouseX, mouseY, button)) {
             this.setFocused(this.tableNameBox);
             return true;
         }
         if (this.handleStepClick(this.minPlusButton, mouseX, mouseY, button,
-                TradingTableInitMenu.BUTTON_MIN_PLUS, TradingTableInitMenu.BUTTON_MIN_PLUS_8, TradingTableInitMenu.BUTTON_MIN_PLUS_32)) {
+                TradingTableInitMenu.BUTTON_MIN_PLUS, TradingTableInitMenu.BUTTON_MIN_PLUS_8, TradingTableInitMenu.BUTTON_MIN_PLUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.minMinusButton, mouseX, mouseY, button,
-                TradingTableInitMenu.BUTTON_MIN_MINUS, TradingTableInitMenu.BUTTON_MIN_MINUS_8, TradingTableInitMenu.BUTTON_MIN_MINUS_32)) {
+                TradingTableInitMenu.BUTTON_MIN_MINUS, TradingTableInitMenu.BUTTON_MIN_MINUS_8, TradingTableInitMenu.BUTTON_MIN_MINUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.pricePlusButton, mouseX, mouseY, button,
-                TradingTableInitMenu.BUTTON_PRICE_PLUS, TradingTableInitMenu.BUTTON_PRICE_PLUS_8, TradingTableInitMenu.BUTTON_PRICE_PLUS_32)) {
+                TradingTableInitMenu.BUTTON_PRICE_PLUS, TradingTableInitMenu.BUTTON_PRICE_PLUS_8, TradingTableInitMenu.BUTTON_PRICE_PLUS_32, false)) {
             return true;
         }
         if (this.handleStepClick(this.priceMinusButton, mouseX, mouseY, button,
-                TradingTableInitMenu.BUTTON_PRICE_MINUS, TradingTableInitMenu.BUTTON_PRICE_MINUS_8, TradingTableInitMenu.BUTTON_PRICE_MINUS_32)) {
+                TradingTableInitMenu.BUTTON_PRICE_MINUS, TradingTableInitMenu.BUTTON_PRICE_MINUS_8, TradingTableInitMenu.BUTTON_PRICE_MINUS_32, false)) {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -141,6 +171,10 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     @Override
     protected void containerTick() {
         super.containerTick();
+        if (this.menu.isInitialized()) {
+            this.onClose();
+            return;
+        }
         this.updateStateButtons();
     }
 
@@ -185,8 +219,8 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     }
 
     private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton,
-                                    int oneId, int eightId, int thirtyTwoId) {
-        if (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY)) {
+                                    int oneId, int eightId, int thirtyTwoId, boolean bypassButtonCheck) {
+        if (!bypassButtonCheck && (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY))) {
             return false;
         }
 
@@ -245,6 +279,38 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
+        Component header = Component.translatable(
+                "ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.init")
+        );
+
+        int headerWidth = this.font.width(header);
+        if (headerWidth > 160) {
+            long time = net.minecraft.Util.getMillis();
+            if (this.headerScrollTime == 0) {
+                this.headerScrollTime = time;
+            }
+            long delta = time - this.headerScrollTime;
+            long pauseDuration = 1800L; // 3 seconds pause
+
+            int scroll = 0;
+            if (delta > pauseDuration) {
+                scroll = (int) ((delta - pauseDuration) / 30L);
+            }
+
+            int maxScroll = headerWidth - 160;
+            if (scroll > maxScroll + 60) { // 60 frames extra pause at the end
+                this.headerScrollTime = time;
+                scroll = 0;
+            } else if (scroll > maxScroll) {
+                scroll = maxScroll;
+            }
+            guiGraphics.enableScissor(this.leftPos + 8, this.topPos + 6, this.leftPos + 8 + 160, this.topPos + 6 + 10);
+            guiGraphics.drawString(this.font, header, this.leftPos + 8 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            guiGraphics.disableScissor();
+        } else {
+            guiGraphics.drawString(this.font, header, this.leftPos + 8, this.topPos + 6, COLOR_TEXT, false);
+        }
+
         int leftX = this.leftPos + LEFT_PANEL_X;
         int rightX = this.leftPos + RIGHT_PANEL_X;
 
@@ -271,12 +337,12 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     }
 
     @Override
+    protected void renderLabels(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        // All text is drawn in render() with custom layout.
+    }
+
+    @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
         guiGraphics.blit(BG_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
     }
 }
-
-
-
-
-

@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -42,6 +43,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
     private Button amountMinusButton;
     private boolean awaitingTradeResult;
     private int pendingTradeEventId;
+    private long headerScrollTime;
 
     public TradingTableTradeScreen(TradingTableTradeMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -62,21 +64,38 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 .bounds(executeX, executeY, executeWidth, 20)
                 .build());
 
+        Tooltip stepTooltip = Tooltip.create(Component.translatable("ui.trading_table.step.tooltip"));
+
         int amountY = this.topPos + AMOUNT_BUTTON_Y;
         this.amountMinusButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.amount_decrease"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_MINUS))
                 .bounds(this.leftPos + 8, amountY, 20, 20)
+                .tooltip(stepTooltip)
                 .build());
         this.amountPlusButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.amount_increase"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_PLUS))
                 .bounds(this.leftPos + 48, amountY, 20, 20)
+                .tooltip(stepTooltip)
                 .build());
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (scrollY != 0) {
+            int amountCenterX = this.leftPos + AMOUNT_CENTER_X;
+            if (mouseX >= amountCenterX - 20 && mouseX <= amountCenterX + 20 && mouseY >= this.topPos + AMOUNT_VALUE_Y && mouseY <= this.topPos + AMOUNT_VALUE_Y + 18) {
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, false, true);
+                else this.handleStepClick(null, mouseX, mouseY, 0, true, true);
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.handleStepClick(this.amountPlusButton, mouseX, mouseY, button)) {
+        if (this.handleStepClick(this.amountPlusButton, mouseX, mouseY, button, false, false)) {
             return true;
         }
-        if (this.handleStepClick(this.amountMinusButton, mouseX, mouseY, button)) {
+        if (this.handleStepClick(this.amountMinusButton, mouseX, mouseY, button, true, false)) {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -115,12 +134,11 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         this.onClose();
     }
 
-    private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton) {
-        if (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY)) {
+    private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton, boolean isMinus, boolean bypassButtonCheck) {
+        if (!bypassButtonCheck && (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY))) {
             return false;
         }
 
-        boolean isMinus = buttonWidget == this.amountMinusButton;
         int oneId = isMinus ? TradingTableTradeMenu.BUTTON_AMOUNT_MINUS : TradingTableTradeMenu.BUTTON_AMOUNT_PLUS;
         int eightId = isMinus ? TradingTableTradeMenu.BUTTON_AMOUNT_MINUS_8 : TradingTableTradeMenu.BUTTON_AMOUNT_PLUS_8;
         int thirtyTwoId = isMinus ? TradingTableTradeMenu.BUTTON_AMOUNT_MINUS_32 : TradingTableTradeMenu.BUTTON_AMOUNT_PLUS_32;
@@ -166,7 +184,33 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable("ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.trade"));
-        guiGraphics.drawString(this.font, header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
+        int headerWidth = this.font.width(header);
+        if (headerWidth > 160) {
+            long time = net.minecraft.Util.getMillis();
+            if (this.headerScrollTime == 0) {
+                this.headerScrollTime = time;
+            }
+            long delta = time - this.headerScrollTime;
+            long pauseDuration = 1800L; // 3 seconds pause
+
+            int scroll = 0;
+            if (delta > pauseDuration) {
+                scroll = (int) ((delta - pauseDuration) / 30L);
+            }
+
+            int maxScroll = headerWidth - 160;
+            if (scroll > maxScroll + 60) { // 60 frames extra pause at the end
+                this.headerScrollTime = time;
+                scroll = 0;
+            } else if (scroll > maxScroll) {
+                scroll = maxScroll;
+            }
+            guiGraphics.enableScissor(this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, this.leftPos + PANEL_PADDING + 160, this.topPos + HEADER_Y + 10);
+            guiGraphics.drawString(this.font, header, this.leftPos + PANEL_PADDING - scroll, this.topPos + HEADER_Y, COLOR_TEXT, false);
+            guiGraphics.disableScissor();
+        } else {
+            guiGraphics.drawString(this.font, header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
+        }
 
         this.renderTradeItem(guiGraphics);
         this.renderTradeInfo(guiGraphics);
@@ -274,8 +318,4 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         guiGraphics.blit(TRADE_BG_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
     }
 }
-
-
-
-
 
