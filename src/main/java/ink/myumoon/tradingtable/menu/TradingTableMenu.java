@@ -1,6 +1,6 @@
 package ink.myumoon.tradingtable.menu;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.registry.TTBlocks;
 import ink.myumoon.tradingtable.registry.TTMenuTypes;
@@ -420,7 +420,7 @@ public class TradingTableMenu extends AbstractContainerMenu {
     }
 
     private boolean handleCashierExtract(Player player, TradingTableBlockEntity table, int buttonId) {
-        Item currencyItem = Config.getVanillaCurrencyItem();
+        Item currencyItem = Config.getCurrencyItem();
         int maxStack = currencyItem.getDefaultMaxStackSize();
         long available = (long) Math.floor(Math.max(0.0D, table.getCurrencyBalance()));
         if (available <= 0L) {

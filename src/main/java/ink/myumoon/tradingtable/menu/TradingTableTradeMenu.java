@@ -142,12 +142,11 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 return true;
             }
 
-            if (!table.canManage(player)) {
-                player.displayClientMessage(Component.translatable("message.trading_table.no_permission_manage"), true);
-                return false;
-            }
-
             if (id == BUTTON_TOGGLE_TYPE) {
+                if (!table.canManage(player)) {
+                    player.displayClientMessage(Component.translatable("message.trading_table.no_permission_manage"), true);
+                    return false;
+                }
                 table.setBuyOrder(!table.isBuyOrder());
                 player.displayClientMessage(Component.translatable("message.trading_table.toggled_trade_type"), true);
                 return true;

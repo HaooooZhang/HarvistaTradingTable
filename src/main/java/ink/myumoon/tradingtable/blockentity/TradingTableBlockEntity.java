@@ -1,6 +1,6 @@
 package ink.myumoon.tradingtable.blockentity;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
@@ -336,7 +336,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         if (this.convertingCurrencyDeposit) {
             return;
         }
-        Item currencyItem = Config.getVanillaCurrencyItem();
+        Item currencyItem = Config.getCurrencyItem();
         int totalCurrencyItems = 0;
         for (int i = 0; i < this.inventory.getSlots(); i++) {
             ItemStack stack = this.inventory.getStackInSlot(i);

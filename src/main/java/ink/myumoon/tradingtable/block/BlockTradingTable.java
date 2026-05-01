@@ -1,6 +1,6 @@
 package ink.myumoon.tradingtable.block;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.OpenMenuMode;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -116,7 +116,7 @@ public class BlockTradingTable extends Block implements EntityBlock {
 
                 long balance = (long) Math.floor(tradingTableBlockEntity.getCurrencyBalance());
                 if (balance > 0L) {
-                    ItemStack template = new ItemStack(Config.getVanillaCurrencyItem());
+                    ItemStack template = new ItemStack(Config.getCurrencyItem());
                     int maxStackSize = template.getMaxStackSize();
                     while (balance > 0L) {
                         int drop = (int) Math.min(balance, maxStackSize);

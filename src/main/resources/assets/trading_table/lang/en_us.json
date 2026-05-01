@@ -8,21 +8,16 @@
   "container.trading_table.trade": "Trade Screen",
   "container.trading_table.manage": "Manage Screen",
 
-  "ui.trading_table.need_trade_item": "Please add a trade item",
   "ui.trading_table.trade.header": "%s | %s",
-  "ui.trading_table.trade.none": "-",
   "ui.trading_table.trade.type.buy": "Buy",
   "ui.trading_table.trade.type.sell": "Sell",
   "ui.trading_table.trade.line.type": "%s at:",
-  "ui.trading_table.trade.line.item": "Item: %s",
   "ui.trading_table.trade.line.price": "%s",
-  "ui.trading_table.trade.line.min": "Min Unit: %s",
   "ui.trading_table.trade.line.min_suffix": "/ %s pcs",
   "ui.trading_table.trade.line.stock": "Stock: %s",
   "ui.trading_table.trade.line.balance": "Balance: %s",
   "ui.trading_table.button.execute": "Trade",
-  "ui.trading_table.button.amount_decrease": "<",
-  "ui.trading_table.button.amount_increase": ">",
+
   "ui.trading_table.manage.type": "TYPE",
   "ui.trading_table.manage.type.sell": "SELL",
   "ui.trading_table.manage.type.buy": "BUY",
@@ -31,25 +26,26 @@
   "ui.trading_table.manage.enable": "ENABLE",
   "ui.trading_table.manage.disable": "DISABLE",
   "ui.trading_table.manage.save": "SAVE",
-  "ui.trading_table.manage.name": "TradeTableName",
-  "ui.trading_table.manage.trade_item": "TradeItem",
-  "ui.trading_table.manage.trade_item.slot0": "Use Slot[0] then confirm",
+  "ui.trading_table.manage.name": "Name",
+  "ui.trading_table.manage.trade_item": "Trade Item",
   "ui.trading_table.manage.trade_item.confirm": "OK",
   "ui.trading_table.manage.currency": "Balance",
   "ui.trading_table.manage.extract": "Extract",
+
   "ui.trading_table.init.name": "Name",
   "ui.trading_table.init.trade_item": "Trade Item",
-  "ui.trading_table.init.type": "Type",
   "ui.trading_table.init.price": "Price",
   "ui.trading_table.init.min": "Min Unit",
   "ui.trading_table.init.initialize": "Initialize",
+
   "ui.trading_table.step.tooltip": "Press Shift/Ctrl to quickly modify the quantity, or you can also use the mouse wheel.",
+  "ui.trading_table.tax.tooltip": "Due to the %s %% tax rate, you need to pay an additional %s %s in taxes for this trade.",
 
   "trading_table.configuration.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.section.trading_table.common.toml": "Harvista's Trading Table Configs",
   "trading_table.configuration.section.trading_table.common.toml.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.currencyBackend": "Currency Backend",
-  "trading_table.configuration.vanillaCurrencyItem": "Vanilla Currency Item",
+  "trading_table.configuration.CurrencyItem": "Currency Item",
   "trading_table.configuration.taxRate": "Tax Rate",
   "trading_table.configuration.adminPermissionLevel": "Admin Permission Level",
 
@@ -77,7 +73,6 @@
   "message.trading_table.updated_trade_type_buy": "Trade type set to BUY.",
   "message.trading_table.updated_min_trade": "Minimum trade amount updated.",
   "message.trading_table.updated_price": "Unit price updated.",
-  "message.trading_table.toggled_enabled": "Trading enabled state toggled.",
   "message.trading_table.manage_saved": "Management settings saved.",
-  "message.trading_table.trade_item_saved": "Trade item updated from Slot[0]."
+  "message.trading_table.trade_item_saved": "Trade item saved"
 }

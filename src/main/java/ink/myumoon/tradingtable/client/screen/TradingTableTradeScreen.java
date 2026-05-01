@@ -1,9 +1,11 @@
 package ink.myumoon.tradingtable.client.screen;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.economy.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -41,6 +43,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
 
     private Button amountPlusButton;
     private Button amountMinusButton;
+    private Button executeButton;
     private boolean awaitingTradeResult;
     private int pendingTradeEventId;
     private long headerScrollTime;
@@ -60,20 +63,22 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         int panelWidth = this.imageWidth - PANEL_PADDING * 2;
         int executeX = this.leftPos + 78;
         int executeY = this.topPos + 70;
-        this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.execute"), b -> this.handleTradeClick())
-                .bounds(executeX, executeY, executeWidth, 20)
-                .build());
 
         Tooltip stepTooltip = Tooltip.create(Component.translatable("ui.trading_table.step.tooltip"));
 
         int amountY = this.topPos + AMOUNT_BUTTON_Y;
-        this.amountMinusButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.amount_decrease"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_MINUS))
+        this.amountMinusButton = this.addRenderableWidget(Button.builder(Component.literal("<"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_MINUS))
                 .bounds(this.leftPos + 8, amountY, 20, 20)
                 .tooltip(stepTooltip)
                 .build());
-        this.amountPlusButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.amount_increase"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_PLUS))
+        this.amountPlusButton = this.addRenderableWidget(Button.builder(Component.literal(">"), b -> sendButton(TradingTableTradeMenu.BUTTON_AMOUNT_PLUS))
                 .bounds(this.leftPos + 48, amountY, 20, 20)
                 .tooltip(stepTooltip)
+                .build());
+
+        // 动态 Tooltip 不能在 init 时静态创建 —— 保存按钮引用，在 render 时根据当前数值动态显示提示
+        this.executeButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.execute"), b -> this.handleTradeClick())
+                .bounds(executeX, executeY, executeWidth, 20)
                 .build());
     }
 
@@ -180,7 +185,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
 
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        //this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable("ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.trade"));
@@ -227,6 +232,14 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             guiGraphics.renderTooltip(this.font, new ItemStack(tradeItem), mouseX, mouseY);
         }
 
+        // 动态税收提示：按钮 Tooltip 不能在 init() 时静态创建，因为数量/价格会变。
+        long taxAmount = TaxService.calculateTax(this.menu.getUnitPrice() * (double) this.menu.getRequestedAmount());
+        if (this.executeButton != null && this.executeButton.isMouseOver(mouseX, mouseY) && taxAmount > 0L && this.menu.isBuyOrder()) {
+            Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), taxAmount, I18n.get(Config.getCurrencyItem().getDescriptionId()));
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(taxComp, 180);
+            guiGraphics.renderTooltip(this.font, lines, mouseX, mouseY);
+        }
+
         this.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
@@ -237,7 +250,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         Item tradeItem = this.menu.getTradeItem();
         if (tradeItem == null) {
             guiGraphics.drawCenteredString(this.font,
-                    Component.translatable("ui.trading_table.trade.none"),
+                    Component.literal("-"),
                     boxLeft + ICON_BOX_SIZE / 2,
                     boxTop + 14,
                     COLOR_TEXT);
@@ -281,7 +294,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 COLOR_TEXT,
                 false);
         int currencyIconX = this.leftPos + INFO_X + this.font.width(priceText) + 3;
-        guiGraphics.renderItem(new ItemStack(Config.getVanillaCurrencyItem()), currencyIconX, priceY - 4);
+        guiGraphics.renderItem(new ItemStack(Config.getCurrencyItem()), currencyIconX, priceY - 4);
         guiGraphics.drawString(this.font,
                 Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
                 currencyIconX + 18,

@@ -1,6 +1,6 @@
 package ink.myumoon.tradingtable.trade;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -8,6 +8,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import ink.myumoon.tradingtable.economy.TaxService;
 
 public final class TradingService {
     private TradingService() {
@@ -39,7 +40,7 @@ public final class TradingService {
 
         long tradeUnits = amount / minAmount;
         long gross = table.getUnitPrice() * tradeUnits;
-        long tax = Config.roundTax(gross);
+        long tax = TaxService.calculateTax(gross);
         long net = Math.max(0L, gross - tax);
 
         if (table.isBuyOrder()) {
@@ -61,7 +62,7 @@ public final class TradingService {
         }
 
         // 检查玩家余额
-        Item currency = Config.getVanillaCurrencyItem();
+        Item currency = Config.getCurrencyItem();
         int playerCurrency = countInPlayer(player, currency);
         long minimumGross = table.getUnitPrice();
         if (playerCurrency < minimumGross) {
@@ -124,7 +125,7 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
         }
 
-        giveCurrencyToPlayer(player, Config.getVanillaCurrencyItem(), net);
+        giveCurrencyToPlayer(player, Config.getCurrencyItem(), net);
         return TradeResult.success("message.trading_table.trade_success");
     }
 

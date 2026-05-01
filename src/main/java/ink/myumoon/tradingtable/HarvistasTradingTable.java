@@ -1,6 +1,7 @@
 package ink.myumoon.tradingtable;
 
 import com.mojang.logging.LogUtils;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.registry.TTRegistries;
 import ink.myumoon.tradingtable.util.TradingTableCapabilities;
 import net.neoforged.bus.api.IEventBus;

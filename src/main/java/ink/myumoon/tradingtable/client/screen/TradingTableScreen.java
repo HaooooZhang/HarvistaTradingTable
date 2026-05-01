@@ -1,7 +1,8 @@
 package ink.myumoon.tradingtable.client.screen;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.economy.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -282,7 +283,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
             this.extractButton.active = allowManage;
         }
         if (this.confirmTradeItemButton != null) {
-            this.confirmTradeItemButton.active = allowManage && this.menu.isTradeItemSelectionDirty();
+            this.confirmTradeItemButton.active = allowManage && this.menu.isTradeItemSelectionDirty() && this.menu.getSlot(0).hasItem();
         }
         if (this.saveButton != null) {
             this.saveButton.active = allowManage && (this.menu.hasUnsavedManageChanges() || this.isTableNameDirty());
@@ -311,7 +312,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
 
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        //this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
@@ -362,7 +363,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
         String balance = String.format(Locale.ROOT, "%.1f", this.menu.getCashierBalance());
         guiGraphics.drawString(this.font, balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
-        Item currencyItem = Config.getVanillaCurrencyItem();
+        Item currencyItem = Config.getCurrencyItem();
         guiGraphics.renderItem(new ItemStack(currencyItem), rightX + this.font.width(balance) + 2 + 8, this.topPos + 90);
 
         if (this.tableNameBox != null) {
