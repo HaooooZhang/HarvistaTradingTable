@@ -9,6 +9,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 public final class TradingService {
     private TradingService() {
     }
@@ -62,7 +67,9 @@ public final class TradingService {
 
         // 检查玩家余额
         Item currency = Config.getCurrencyItem();
-        int playerCurrency = countInPlayer(player, currency);
+        long playerCurrency = ConversionService.isEnabled()
+                ? ConversionService.totalValue(player.getInventory().items)
+                : countInPlayer(player, currency);
         long minimumGross = table.getUnitPrice();
         if (playerCurrency < minimumGross) {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
@@ -75,7 +82,10 @@ public final class TradingService {
         if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
             return TradeResult.fail("message.trading_table.stock_too_low", true);
         }
-        if (!removeFromPlayer(player, currency, gross)) {
+        boolean removed = ConversionService.isEnabled()
+                ? removeMixedCurrencyFromPlayer(player, gross)
+                : removeFromPlayer(player, currency, gross);
+        if (!removed) {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
@@ -163,6 +173,69 @@ public final class TradingService {
         return remaining == 0L;
     }
 
+    private static boolean removeMixedCurrencyFromPlayer(Player player, long amount) {
+        Map<Item, Integer> available = new LinkedHashMap<>();
+        for (ItemStack stack : player.getInventory().items) {
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Item item = stack.getItem();
+            if (ConversionService.isRegistered(item)) {
+                available.put(item, available.getOrDefault(item, 0) + stack.getCount());
+            }
+        }
+
+        Optional<List<ItemStack>> payment = ConversionService.tryFillPayment(amount, available);
+        if (payment.isEmpty()) {
+            return false;
+        }
+
+        List<ItemStack> toConsume = payment.get();
+
+        // 计算实际支付的总价值（可能大于 amount）
+        long totalPaymentValue = 0L;
+        for (ItemStack stack : toConsume) {
+            long itemValue = ConversionService.getValue(stack.getItem());
+            totalPaymentValue += itemValue * stack.getCount();
+        }
+
+        // 计算找零
+        long changeValue = totalPaymentValue - amount;
+
+        // 从玩家背包扣除支付的货币
+        for (ItemStack need : toConsume) {
+            int remaining = need.getCount();
+            for (int i = 0; i < player.getInventory().items.size() && remaining > 0; i++) {
+                ItemStack stack = player.getInventory().items.get(i);
+                if (!stack.is(need.getItem())) {
+                    continue;
+                }
+                int remove = Math.min(remaining, stack.getCount());
+                stack.shrink(remove);
+                remaining -= remove;
+            }
+            if (remaining > 0) {
+                return false;
+            }
+        }
+
+        // 如果有找零，转换为物品并返还给玩家
+        if (changeValue > 0L) {
+            List<ItemStack> changeStacks = ConversionService.convertBalanceToStacks(changeValue);
+            for (ItemStack changeStack : changeStacks) {
+                ItemStack remaining = changeStack.copy();
+                if (!player.getInventory().add(remaining)) {
+                    // 背包放不下，掉落在地上
+                    ItemEntity drop = new ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), remaining);
+                    drop.setPickUpDelay(0);
+                    player.level().addFreshEntity(drop);
+                }
+            }
+        }
+
+        return true;
+    }
+
     private static boolean removeFromHandler(ItemStackHandler handler, Item item, int amount) {
         int remaining = amount;
         for (int i = 0; i < handler.getSlots() && remaining > 0; i++) {
@@ -201,6 +274,13 @@ public final class TradingService {
 
     private static void giveCurrencyToPlayer(Player player, Item currencyItem, long amount) {
         if (amount <= 0L) {
+            return;
+        }
+
+        if (ConversionService.isEnabled()) {
+            for (ItemStack stack : ConversionService.convertBalanceToStacks(amount)) {
+                giveToPlayer(player, stack);
+            }
             return;
         }
 

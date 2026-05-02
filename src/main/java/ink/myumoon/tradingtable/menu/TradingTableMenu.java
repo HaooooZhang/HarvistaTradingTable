@@ -2,6 +2,7 @@ package ink.myumoon.tradingtable.menu;
 
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.trade.ConversionService;
 import ink.myumoon.tradingtable.registry.TTBlocks;
 import ink.myumoon.tradingtable.registry.TTMenuTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -17,6 +18,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TradingTableMenu extends AbstractContainerMenu {
     public static final int INVENTORY_SLOTS = 27;
@@ -421,26 +425,33 @@ public class TradingTableMenu extends AbstractContainerMenu {
 
     private boolean handleCashierExtract(Player player, TradingTableBlockEntity table, int buttonId) {
         Item currencyItem = Config.getCurrencyItem();
-        int maxStack = currencyItem.getDefaultMaxStackSize();
         long available = (long) Math.floor(Math.max(0.0D, table.getCurrencyBalance()));
         if (available <= 0L) {
             return false;
         }
 
+        int maxStack = currencyItem.getDefaultMaxStackSize();
         long desired;
         boolean dropOverflow;
         if (buttonId == BUTTON_EXTRACT_ALL) {
             desired = available;
             dropOverflow = true;
         } else if (buttonId == BUTTON_EXTRACT_STACK) {
-            desired = Math.min(available, maxStack);
+            long stackValue = (long) maxStack * Math.max(1L, ConversionService.getValue(currencyItem));
+            desired = Math.min(available, stackValue);
             dropOverflow = true;
         } else {
-            int fit = countFitInInventory(player, currencyItem);
-            if (fit <= 0) {
-                return false;
+            if (ConversionService.isEnabled()) {
+                // 先按大面额换算，再按真实背包可放入情况计算可提取总价值
+                List<ItemStack> converted = ConversionService.convertBalanceToStacks(available);
+                desired = countFitValueInInventoryForConvertedStacks(player, converted);
+            } else {
+                int fit = countFitInInventory(player, currencyItem);
+                if (fit <= 0) {
+                    return false;
+                }
+                desired = Math.min(available, fit);
             }
-            desired = Math.min(available, fit);
             dropOverflow = false;
         }
 
@@ -448,10 +459,16 @@ public class TradingTableMenu extends AbstractContainerMenu {
             return false;
         }
 
-        long overflow = giveCurrencyToPlayer(player, currencyItem, desired);
+        long overflow = ConversionService.isEnabled()
+                ? giveConvertedCurrencyToPlayer(player, ConversionService.convertBalanceToStacks(desired))
+                : giveCurrencyToPlayer(player, currencyItem, desired);
         if (overflow > 0L) {
             if (dropOverflow) {
-                dropCurrencyNearPlayer(player, currencyItem, overflow);
+                if (ConversionService.isEnabled()) {
+                    dropConvertedCurrencyNearPlayer(player, overflow);
+                } else {
+                    dropCurrencyNearPlayer(player, currencyItem, overflow);
+                }
             } else {
                 table.depositCurrency(overflow);
             }
@@ -495,6 +512,78 @@ public class TradingTableMenu extends AbstractContainerMenu {
         return Math.max(0L, remaining);
     }
 
+    private static long giveConvertedCurrencyToPlayer(Player player, List<ItemStack> stacks) {
+        long overflow = 0L;
+        for (ItemStack stack : stacks) {
+            if (stack.isEmpty()) {
+                continue;
+            }
+            ItemStack remaining = stack.copy();
+            player.getInventory().add(remaining);
+            int leftoverCount = remaining.getCount();
+            if (leftoverCount <= 0) {
+                continue;
+            }
+
+            overflow += ConversionService.getValue(stack.getItem()) * leftoverCount;
+        }
+        return overflow;
+    }
+
+    private static long countFitValueInInventoryForConvertedStacks(Player player, List<ItemStack> stacks) {
+        List<ItemStack> simulated = new ArrayList<>(player.getInventory().items.size());
+        for (ItemStack stack : player.getInventory().items) {
+            simulated.add(stack.copy());
+        }
+
+        long fitValue = 0L;
+        for (ItemStack converted : stacks) {
+            if (converted.isEmpty()) {
+                continue;
+            }
+            Item coin = converted.getItem();
+            long unitValue = ConversionService.getValue(coin);
+            if (unitValue <= 0L) {
+                continue;
+            }
+
+            int remaining = converted.getCount();
+
+            // 先尝试堆入同币种已有堆
+            for (ItemStack slot : simulated) {
+                if (remaining <= 0) {
+                    break;
+                }
+                if (slot.isEmpty() || !slot.is(coin)) {
+                    continue;
+                }
+                int max = Math.min(slot.getMaxStackSize(), coin.getDefaultMaxStackSize());
+                int canInsert = Math.max(0, max - slot.getCount());
+                if (canInsert <= 0) {
+                    continue;
+                }
+                int inserted = Math.min(remaining, canInsert);
+                slot.grow(inserted);
+                remaining -= inserted;
+                fitValue += unitValue * inserted;
+            }
+
+            // 再使用空槽
+            for (int i = 0; i < simulated.size() && remaining > 0; i++) {
+                ItemStack slot = simulated.get(i);
+                if (!slot.isEmpty()) {
+                    continue;
+                }
+                int inserted = Math.min(remaining, coin.getDefaultMaxStackSize());
+                simulated.set(i, new ItemStack(coin, inserted));
+                remaining -= inserted;
+                fitValue += unitValue * inserted;
+            }
+        }
+
+        return fitValue;
+    }
+
     private static void dropCurrencyNearPlayer(Player player, Item item, long amount) {
         int maxStack = item.getDefaultMaxStackSize();
         long remaining = amount;
@@ -504,6 +593,21 @@ public class TradingTableMenu extends AbstractContainerMenu {
             entity.setPickUpDelay(0);
             player.level().addFreshEntity(entity);
             remaining -= drop;
+        }
+    }
+
+    private static void dropCurrencyNearPlayer(Player player, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        ItemEntity entity = new ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), stack.copy());
+        entity.setPickUpDelay(0);
+        player.level().addFreshEntity(entity);
+    }
+
+    private static void dropConvertedCurrencyNearPlayer(Player player, long amount) {
+        for (ItemStack stack : ConversionService.convertBalanceToStacks(amount)) {
+            dropCurrencyNearPlayer(player, stack);
         }
     }
 

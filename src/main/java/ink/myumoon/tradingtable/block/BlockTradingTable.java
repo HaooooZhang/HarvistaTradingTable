@@ -3,6 +3,7 @@ package ink.myumoon.tradingtable.block;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.OpenMenuMode;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.trade.ConversionService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -116,12 +117,18 @@ public class BlockTradingTable extends Block implements EntityBlock {
 
                 long balance = (long) Math.floor(tradingTableBlockEntity.getCurrencyBalance());
                 if (balance > 0L) {
-                    ItemStack template = new ItemStack(Config.getCurrencyItem());
-                    int maxStackSize = template.getMaxStackSize();
-                    while (balance > 0L) {
-                        int drop = (int) Math.min(balance, maxStackSize);
-                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), new ItemStack(template.getItem(), drop));
-                        balance -= drop;
+                    if (ConversionService.isEnabled()) {
+                        for (ItemStack stack : ConversionService.convertBalanceToStacks(balance)) {
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                        }
+                    } else {
+                        ItemStack template = new ItemStack(Config.getCurrencyItem());
+                        int maxStackSize = template.getMaxStackSize();
+                        while (balance > 0L) {
+                            int drop = (int) Math.min(balance, maxStackSize);
+                            Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), new ItemStack(template.getItem(), drop));
+                            balance -= drop;
+                        }
                     }
                 }
             }

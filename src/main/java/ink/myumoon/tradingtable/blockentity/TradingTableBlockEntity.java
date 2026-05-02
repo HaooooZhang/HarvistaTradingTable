@@ -5,6 +5,7 @@ import ink.myumoon.tradingtable.block.BlockTradingTable;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
+import ink.myumoon.tradingtable.trade.ConversionService;
 import ink.myumoon.tradingtable.registry.TTBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -336,6 +337,32 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         if (this.convertingCurrencyDeposit) {
             return;
         }
+        if (ConversionService.isEnabled()) {
+            long totalValue = 0L;
+            this.convertingCurrencyDeposit = true;
+            try {
+                for (int i = 0; i < this.inventory.getSlots(); i++) {
+                    ItemStack stack = this.inventory.getStackInSlot(i);
+                    if (stack.isEmpty()) {
+                        continue;
+                    }
+                    long value = ConversionService.getValue(stack.getItem());
+                    if (value <= 0L) {
+                        continue;
+                    }
+                    totalValue += value * stack.getCount();
+                    this.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                }
+            } finally {
+                this.convertingCurrencyDeposit = false;
+            }
+
+            if (totalValue > 0L) {
+                this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalValue);
+            }
+            return;
+        }
+
         Item currencyItem = Config.getCurrencyItem();
         int totalCurrencyItems = 0;
         for (int i = 0; i < this.inventory.getSlots(); i++) {

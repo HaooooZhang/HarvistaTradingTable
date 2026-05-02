@@ -15,6 +15,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+
+// todo 没写溢出
 public class TradingTableTradeMenu extends AbstractContainerMenu {
     public static final int INVENTORY_SLOTS = 27;
     public static final int BUTTON_EXECUTE = 0;
