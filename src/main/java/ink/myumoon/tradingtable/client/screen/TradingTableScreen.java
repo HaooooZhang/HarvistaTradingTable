@@ -2,7 +2,6 @@ package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
-import ink.myumoon.tradingtable.economy.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;

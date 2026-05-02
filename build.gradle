@@ -28,6 +28,12 @@ sourceSets.main.resources {
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+    maven {
+        url "https://cursemaven.com"
+        content {
+            includeGroup "curse.maven"
+        }
+    }
 }
 
 base {
@@ -139,7 +145,8 @@ dependencies {
 //
 //    compileOnly files(neoEssentialsJar)
 //    localRuntime files(neoEssentialsJar)
-    implementation files("libs/neoessentials-1.0.2.1")
+    implementation files("libs/neoessentials-1.0.2.1.jar")
+    implementation "curse.maven:random-economy-1164971:7128112"
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

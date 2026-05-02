@@ -96,6 +96,12 @@ Trading with Other Players!
     ordering="AFTER"
     side="BOTH"
 
+[[dependencies.${mod_id}]]
+modId="random_ecomony"
+type="optional"
+versionRange="[1.0.0,)"
+ordering="AFTER"
+side="BOTH"
 
 
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares

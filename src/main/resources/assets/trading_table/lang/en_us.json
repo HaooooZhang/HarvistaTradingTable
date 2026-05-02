@@ -46,6 +46,7 @@
   "trading_table.configuration.section.trading_table.common.toml.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.currencyBackend": "Currency Backend",
   "trading_table.configuration.CurrencyItem": "Currency Item",
+  "trading_table.configuration.CompatibilityMode": "Compatibility Mode",
   "trading_table.configuration.taxRate": "Tax Rate",
   "trading_table.configuration.adminPermissionLevel": "Admin Permission Level",
 

@@ -1,4 +1,4 @@
-package ink.myumoon.tradingtable.economy;
+package ink.myumoon.tradingtable.trade;
 
 import ink.myumoon.tradingtable.config.Config;
 

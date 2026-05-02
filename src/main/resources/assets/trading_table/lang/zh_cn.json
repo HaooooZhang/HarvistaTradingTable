@@ -45,6 +45,7 @@
   "trading_table.configuration.section.trading_table.common.toml.title": "Harvista's Trading Table Configs",
   "trading_table.configuration.currencyBackend": "经济后端",
   "trading_table.configuration.CurrencyItem": "货币物品",
+  "trading_table.configuration.CompatibilityMode": "兼容模式",
   "trading_table.configuration.taxRate": "税率",
   "trading_table.configuration.adminPermissionLevel": "管理员权限等级",
 
