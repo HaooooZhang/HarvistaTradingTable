@@ -15,8 +15,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-
-// todo 没写溢出
 public class TradingTableTradeMenu extends AbstractContainerMenu {
     public static final int INVENTORY_SLOTS = 27;
     public static final int BUTTON_EXECUTE = 0;
@@ -35,8 +33,9 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
     private int cachedType = 0;
     private int cachedStock = 0;
     private int cachedTradeItemId = -1;
-    private int cachedCurrencyWhole = 0;
-    private int cachedCurrencyFraction = 0;
+    private double cachedCurrencyBalance = 0.0D;
+    private int tempCurrencyHighBits;
+    private int tempCurrencyLowBits;
     private int cachedTradeEventId = 0;
     private int cachedTradeResult = 0;
     private final ContainerData viewData = new ContainerData() {
@@ -50,8 +49,8 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 case 3 -> cachedType;
                 case 4 -> cachedStock;
                 case 5 -> cachedTradeItemId;
-                case 6 -> cachedCurrencyWhole;
-                case 7 -> cachedCurrencyFraction;
+                case 6 -> doubleToHighInt(cachedCurrencyBalance);
+                case 7 -> doubleToLowInt(cachedCurrencyBalance);
                 case 8 -> cachedTradeEventId;
                 case 9 -> cachedTradeResult;
                 default -> 0;
@@ -67,8 +66,14 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 case 3 -> cachedType = value;
                 case 4 -> cachedStock = value;
                 case 5 -> cachedTradeItemId = value;
-                case 6 -> cachedCurrencyWhole = Math.max(0, value);
-                case 7 -> cachedCurrencyFraction = Math.max(0, Math.min(999, value));
+                case 6 -> {
+                    tempCurrencyHighBits = value;
+                    cachedCurrencyBalance = intsToDouble(tempCurrencyHighBits, tempCurrencyLowBits);
+                }
+                case 7 -> {
+                    tempCurrencyLowBits = value;
+                    cachedCurrencyBalance = intsToDouble(tempCurrencyHighBits, tempCurrencyLowBits);
+                }
                 case 8 -> cachedTradeEventId = Math.max(0, value);
                 case 9 -> cachedTradeResult = value > 0 ? 1 : 0;
                 default -> {
@@ -198,9 +203,8 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
     }
 
     public double getCurrencyBalance() {
-        int whole = this.viewData.get(6);
-        int fraction = this.viewData.get(7);
-        return whole + (fraction / 1000.0D);
+        this.refreshFromBlockEntity();
+        return this.cachedCurrencyBalance;
     }
 
     public int getTradeEventId() {
@@ -220,23 +224,27 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 this.cachedStock = table.getTradeStockCount();
                 this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
 
-                double balance = Math.max(0.0D, table.getCurrencyBalance());
-                this.cachedCurrencyWhole = (int) Math.min(Integer.MAX_VALUE, balance);
-                int fraction = (int) Math.round((balance - this.cachedCurrencyWhole) * 1000.0D);
-                if (fraction >= 1000) {
-                    if (this.cachedCurrencyWhole < Integer.MAX_VALUE) {
-                        this.cachedCurrencyWhole++;
-                        fraction = 0;
-                    } else {
-                        fraction = 999;
-                    }
-                }
-                this.cachedCurrencyFraction = Math.max(0, Math.min(999, fraction));
+                this.cachedCurrencyBalance = Math.max(0.0D, table.getCurrencyBalance());
                 if (this.requestedAmount < this.cachedMin) {
                     this.requestedAmount = this.cachedMin;
                 }
             }
         });
+    }
+
+    private static int doubleToHighInt(double value) {
+        long bits = Double.doubleToRawLongBits(value);
+        return (int) (bits >>> 32);
+    }
+
+    private static int doubleToLowInt(double value) {
+        long bits = Double.doubleToRawLongBits(value);
+        return (int) bits;
+    }
+
+    private static double intsToDouble(int high, int low) {
+        long bits = ((long) high << 32) | (low & 0xFFFFFFFFL);
+        return Double.longBitsToDouble(bits);
     }
 
     private static int getStep(int id) {

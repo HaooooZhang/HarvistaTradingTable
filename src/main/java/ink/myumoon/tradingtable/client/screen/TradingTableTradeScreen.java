@@ -233,9 +233,10 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         }
 
         // 动态税收提示：按钮 Tooltip 不能在 init() 时静态创建，因为数量/价格会变。
-        long taxAmount = TaxService.calculateTax(this.menu.getUnitPrice() * (double) this.menu.getRequestedAmount());
-        if (this.executeButton != null && this.executeButton.isMouseOver(mouseX, mouseY) && taxAmount > 0L && this.menu.isBuyOrder()) {
-            Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), taxAmount, I18n.get(Config.getCurrencyItem().getDescriptionId()));
+        double taxAmount = TaxService.calculateTax(this.menu.getUnitPrice() * (double) this.menu.getRequestedAmount());
+        if (this.executeButton != null && this.executeButton.isMouseOver(mouseX, mouseY) && taxAmount > 0.0D && this.menu.isBuyOrder()) {
+            long displayTax = (long) taxAmount;
+            Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, I18n.get(Config.getCurrencyItem().getDescriptionId()));
             java.util.List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(taxComp, 180);
             guiGraphics.renderTooltip(this.font, lines, mouseX, mouseY);
         }

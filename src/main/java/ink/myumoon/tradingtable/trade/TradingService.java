@@ -43,9 +43,9 @@ public final class TradingService {
         }
 
         long tradeUnits = amount / minAmount;
-        long gross = table.getUnitPrice() * tradeUnits;
-        long tax = TaxService.calculateTax(gross);
-        long net = Math.max(0L, gross - tax);
+        double gross = (double) table.getUnitPrice() * tradeUnits;
+        double tax = TaxService.calculateTax(gross);
+        double net = Math.max(0.0D, gross - tax);
 
         if (table.isBuyOrder()) {
             return executeBuyOrder(player, table, tradeItem, amount, minAmount, gross, net);
@@ -55,7 +55,7 @@ public final class TradingService {
 
     // 售出处理
     private static TradeResult executeSellOrder(Player player, TradingTableBlockEntity table, Item tradeItem, int amount,
-                                                int minAmount, long gross, long net) {
+                                                int minAmount, double gross, double net) {
         // 检查库存
         int stock = countInHandler(table.getInventoryHandler(), tradeItem);
         if (stock < minAmount) {
@@ -70,11 +70,7 @@ public final class TradingService {
         long playerCurrency = ConversionService.isEnabled()
                 ? ConversionService.totalValue(player.getInventory().items)
                 : countInPlayer(player, currency);
-        long minimumGross = table.getUnitPrice();
-        if (playerCurrency < minimumGross) {
-            return TradeResult.fail("message.trading_table.player_currency_too_low", false);
-        }
-        if (playerCurrency < gross) {
+        if ((double) playerCurrency < gross) {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
@@ -96,7 +92,7 @@ public final class TradingService {
 
     // 购买处理
     private static TradeResult executeBuyOrder(Player player, TradingTableBlockEntity table, Item tradeItem, int amount,
-                                               int minAmount, long gross, long net) {
+                                               int minAmount, double gross, double net) {
         //检查玩家库存
         int playerItems = countInPlayer(player, tradeItem);
         if (playerItems < minAmount) {
@@ -113,8 +109,7 @@ public final class TradingService {
         }
 
         //检查交易站货币余额
-        long minimumGross = table.getUnitPrice();
-        if (table.getCurrencyBalance() < minimumGross) {
+        if (table.getCurrencyBalance() < (double) table.getUnitPrice()) {
             return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
         }
         if (table.getCurrencyBalance() < gross) {
@@ -159,8 +154,12 @@ public final class TradingService {
         return total;
     }
 
-    private static boolean removeFromPlayer(Player player, Item item, long amount) {
-        long remaining = amount;
+    private static boolean removeFromPlayer(Player player, Item item, double amount) {
+        long wholeAmount = (long) Math.floor(amount);
+        if (wholeAmount <= 0L) {
+            return false;
+        }
+        long remaining = wholeAmount;
         for (int i = 0; i < player.getInventory().items.size() && remaining > 0; i++) {
             ItemStack stack = player.getInventory().items.get(i);
             if (!stack.is(item)) {
@@ -173,7 +172,11 @@ public final class TradingService {
         return remaining == 0L;
     }
 
-    private static boolean removeMixedCurrencyFromPlayer(Player player, long amount) {
+    private static boolean removeMixedCurrencyFromPlayer(Player player, double amount) {
+        long wholeAmount = (long) Math.floor(amount);
+        if (wholeAmount <= 0L) {
+            return false;
+        }
         Map<Item, Integer> available = new LinkedHashMap<>();
         for (ItemStack stack : player.getInventory().items) {
             if (stack.isEmpty()) {
@@ -185,14 +188,14 @@ public final class TradingService {
             }
         }
 
-        Optional<List<ItemStack>> payment = ConversionService.tryFillPayment(amount, available);
+        Optional<List<ItemStack>> payment = ConversionService.tryFillPayment(wholeAmount, available);
         if (payment.isEmpty()) {
             return false;
         }
 
         List<ItemStack> toConsume = payment.get();
 
-        // 计算实际支付的总价值（可能大于 amount）
+        // 计算实际支付的总价值（可能大于 wholeAmount）
         long totalPaymentValue = 0L;
         for (ItemStack stack : toConsume) {
             long itemValue = ConversionService.getValue(stack.getItem());
@@ -200,7 +203,7 @@ public final class TradingService {
         }
 
         // 计算找零
-        long changeValue = totalPaymentValue - amount;
+        long changeValue = totalPaymentValue - wholeAmount;
 
         // 从玩家背包扣除支付的货币
         for (ItemStack need : toConsume) {
@@ -272,20 +275,21 @@ public final class TradingService {
         player.level().addFreshEntity(drop);
     }
 
-    private static void giveCurrencyToPlayer(Player player, Item currencyItem, long amount) {
-        if (amount <= 0L) {
+    private static void giveCurrencyToPlayer(Player player, Item currencyItem, double amount) {
+        long wholeAmount = (long) Math.floor(amount);
+        if (wholeAmount <= 0L) {
             return;
         }
 
         if (ConversionService.isEnabled()) {
-            for (ItemStack stack : ConversionService.convertBalanceToStacks(amount)) {
+            for (ItemStack stack : ConversionService.convertBalanceToStacks(wholeAmount)) {
                 giveToPlayer(player, stack);
             }
             return;
         }
 
         int maxStack = currencyItem.getDefaultMaxStackSize();
-        long remaining = amount;
+        long remaining = wholeAmount;
         while (remaining > 0L) {
             int toGive = (int) Math.min(remaining, maxStack);
             giveToPlayer(player, new ItemStack(currencyItem, toGive));

@@ -22,6 +22,6 @@ public final class ItemCurrencyBackend implements CurrencyBackend {
 
     @Override
     public long roundTax(long grossAmount) {
-        return TaxService.calculateTax(grossAmount);
+        return (long) TaxService.calculateTax(grossAmount);
     }
 }

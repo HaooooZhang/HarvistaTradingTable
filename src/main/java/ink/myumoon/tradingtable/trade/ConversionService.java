@@ -230,12 +230,6 @@ public final class ConversionService {
 			ordered.put(entry.getKey(), entry.getValue());
 		}
 
-		// 调试日志：显示识别到的币种面额映射
-		System.out.println("[ConversionService] Denominations recognized (relative to " + configured.toString() + "):");
-		for (Map.Entry<Item, Long> entry : ordered.entrySet()) {
-			System.out.println("  " + entry.getKey().toString() + " -> " + entry.getValue());
-		}
-
 		return ordered;
 	}
 }

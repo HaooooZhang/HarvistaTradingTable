@@ -79,8 +79,9 @@ public class TradingTableMenu extends AbstractContainerMenu {
     private int cachedPrice = 1;
     private int cachedType = 0;
     private int cachedEnabled = 0;
-    private int cachedCashierWhole = 0;
-    private int cachedCashierFractional = 0;
+    private double cachedCashierBalance = 0.0D;
+    private int tempCashierHighBits;
+    private int tempCashierLowBits;
     private int cachedTradeItemId = -1;
     private boolean cacheInitialized;
     private boolean hasPendingManageChanges;
@@ -95,8 +96,8 @@ public class TradingTableMenu extends AbstractContainerMenu {
                 case 1 -> cachedPrice;
                 case 2 -> cachedType;
                 case 3 -> cachedEnabled;
-                case 4 -> cachedCashierWhole;
-                case 5 -> cachedCashierFractional;
+                case 4 -> doubleToHighInt(cachedCashierBalance);
+                case 5 -> doubleToLowInt(cachedCashierBalance);
                 case 6 -> cachedTradeItemId;
                 case 7 -> hasPendingManageChanges ? 1 : 0;
                 default -> 0;
@@ -111,8 +112,14 @@ public class TradingTableMenu extends AbstractContainerMenu {
                 case 1 -> cachedPrice = value;
                 case 2 -> cachedType = value;
                 case 3 -> cachedEnabled = value;
-                case 4 -> cachedCashierWhole = value;
-                case 5 -> cachedCashierFractional = value;
+                case 4 -> {
+                    tempCashierHighBits = value;
+                    cachedCashierBalance = intsToDouble(tempCashierHighBits, tempCashierLowBits);
+                }
+                case 5 -> {
+                    tempCashierLowBits = value;
+                    cachedCashierBalance = intsToDouble(tempCashierHighBits, tempCashierLowBits);
+                }
                 case 6 -> cachedTradeItemId = value;
                 case 7 -> hasPendingManageChanges = value > 0;
                 default -> {
@@ -374,9 +381,8 @@ public class TradingTableMenu extends AbstractContainerMenu {
     }
 
     public double getCashierBalance() {
-        int whole = this.viewData.get(4);
-        int fractional = this.viewData.get(5);
-        return whole + (fractional / 1000.0D);
+        this.refreshFromBlockEntity();
+        return this.cachedCashierBalance;
     }
 
     public boolean hasUnsavedManageChanges() {
@@ -402,11 +408,7 @@ public class TradingTableMenu extends AbstractContainerMenu {
                     this.cachedEnabled = table.isEnabled() ? 1 : 0;
                     this.cacheInitialized = true;
                 }
-                double balance = Math.max(0.0D, table.getCurrencyBalance());
-                int whole = (int) Math.min(Integer.MAX_VALUE, Math.floor(balance));
-                int fractional = (int) Math.min(999, Math.floor((balance - whole) * 1000.0D + 1.0E-6D));
-                this.cachedCashierWhole = whole;
-                this.cachedCashierFractional = fractional;
+                this.cachedCashierBalance = Math.max(0.0D, table.getCurrencyBalance());
                 this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
             }
         });
@@ -609,6 +611,21 @@ public class TradingTableMenu extends AbstractContainerMenu {
         for (ItemStack stack : ConversionService.convertBalanceToStacks(amount)) {
             dropCurrencyNearPlayer(player, stack);
         }
+    }
+
+    private static int doubleToHighInt(double value) {
+        long bits = Double.doubleToRawLongBits(value);
+        return (int) (bits >>> 32);
+    }
+
+    private static int doubleToLowInt(double value) {
+        long bits = Double.doubleToRawLongBits(value);
+        return (int) bits;
+    }
+
+    private static double intsToDouble(int high, int low) {
+        long bits = ((long) high << 32) | (low & 0xFFFFFFFFL);
+        return Double.longBitsToDouble(bits);
     }
 
     private static int getStep(int id) {

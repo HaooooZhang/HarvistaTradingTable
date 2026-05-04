@@ -7,11 +7,11 @@ public final class TaxService {
     private TaxService() {
     }
 
-    public static long calculateTax(double baseAmount) {
-        if (baseAmount <= 0) {
-            return 0L;
+    public static double calculateTax(double baseAmount) {
+        if (baseAmount <= 0.0D) {
+            return 0.0D;
         }
-        return (long) Math.floor(baseAmount * Config.getTaxRate());
+        return Math.floor(baseAmount * Config.getTaxRate());
     }
 }
 
