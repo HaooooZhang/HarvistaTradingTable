@@ -145,7 +145,7 @@ dependencies {
 //
 //    compileOnly files(neoEssentialsJar)
 //    localRuntime files(neoEssentialsJar)
-    implementation files("libs/neoessentials-1.0.2.1.jar")
+    implementation files("libs/neoessentials-1.0.2.5+build.1074.jar")
     implementation "curse.maven:random-economy-1164971:7128112"
 
     // For more info:

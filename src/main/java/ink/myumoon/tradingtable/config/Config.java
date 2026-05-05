@@ -46,6 +46,10 @@ public class Config {
         return resolvedCurrencyBackend;
     }
 
+    public static boolean isNeoEssentialsMode() {
+        return resolvedCurrencyBackend == CurrencyBackend.NEO_ESSENTIALS;
+    }
+
     public static Item getCurrencyItem() {
         return resolvedCurrencyItem;
     }

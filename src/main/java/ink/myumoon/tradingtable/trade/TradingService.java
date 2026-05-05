@@ -1,7 +1,9 @@
 package ink.myumoon.tradingtable.trade;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -65,6 +67,24 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.stock_not_enough_for_request", false);
         }
 
+        // NeoEssentials 模式：通过 API 检查并扣除玩家余额
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            double playerBalance = NeoEssentialsEconomyService.getBalance(player.getUUID());
+            if (playerBalance + 1.0E-9D < gross) {
+                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
+                return TradeResult.fail("message.trading_table.stock_too_low", true);
+            }
+            if (!NeoEssentialsEconomyService.subtractBalance(player.getUUID(), gross)) {
+                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            giveToPlayer(player, new ItemStack(tradeItem, amount));
+            table.depositCurrency(net);
+            return TradeResult.success("message.trading_table.trade_success");
+        }
+
+        // ITEM 模式
         // 检查玩家余额
         Item currency = Config.getCurrencyItem();
         long playerCurrency = ConversionService.isEnabled()
@@ -108,6 +128,30 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.stock_full", false);
         }
 
+        // NeoEssentials 模式：通过 API 检查余额、扣款、转账
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            if (table.getCurrencyBalance() + 1.0E-9D < (double) table.getUnitPrice()) {
+                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
+            }
+            if (table.getCurrencyBalance() + 1.0E-9D < gross) {
+                return TradeResult.fail("message.trading_table.owner_currency_not_enough_for_request", false);
+            }
+
+            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
+            if (!remainder.isEmpty()) {
+                return TradeResult.fail("message.trading_table.stock_full", false);
+            }
+            if (!removeFromPlayer(player, tradeItem, amount)) {
+                return TradeResult.fail("message.trading_table.player_item_too_low", false);
+            }
+            if (!table.tryWithdrawCurrency(gross)) {
+                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
+            }
+            NeoEssentialsEconomyService.addBalance(player.getUUID(), net);
+            return TradeResult.success("message.trading_table.trade_success");
+        }
+
+        // ITEM 模式
         //检查交易站货币余额
         if (table.getCurrencyBalance() < (double) table.getUnitPrice()) {
             return TradeResult.fail("message.trading_table.owner_currency_too_low", true);

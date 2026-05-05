@@ -1,6 +1,7 @@
 package ink.myumoon.tradingtable.menu;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.trade.ConversionService;
 import ink.myumoon.tradingtable.registry.TTBlocks;
@@ -426,6 +427,9 @@ public class TradingTableMenu extends AbstractContainerMenu {
     }
 
     private boolean handleCashierExtract(Player player, TradingTableBlockEntity table, int buttonId) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            return false;
+        }
         Item currencyItem = Config.getCurrencyItem();
         long available = (long) Math.floor(Math.max(0.0D, table.getCurrencyBalance()));
         if (available <= 0L) {

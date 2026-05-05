@@ -116,7 +116,7 @@ public class BlockTradingTable extends Block implements EntityBlock {
                 }
 
                 long balance = (long) Math.floor(tradingTableBlockEntity.getCurrencyBalance());
-                if (balance > 0L) {
+                if (balance > 0L && !Config.isNeoEssentialsMode()) {
                     if (ConversionService.isEnabled()) {
                         for (ItemStack stack : ConversionService.convertBalanceToStacks(balance)) {
                             Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);

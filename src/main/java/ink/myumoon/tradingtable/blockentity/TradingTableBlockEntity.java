@@ -1,7 +1,10 @@
 package ink.myumoon.tradingtable.blockentity;
 
+import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
@@ -49,6 +52,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     private static final String TAG_MIN_TRADE_AMOUNT = "MinTradeAmount";
     private static final String TAG_UNIT_PRICE = "UnitPrice";
     private static final String TAG_CURRENCY_BALANCE = "CurrencyBalance";
+    private static final String TAG_CURRENCY_MIGRATED = "CurrencyMigrated";
 
     @Nullable
     private UUID owner;
@@ -65,6 +69,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     private boolean syncTaskScheduled;
     private int syncBatchDepth;
     private boolean convertingCurrencyDeposit;
+    private boolean currencyMigrated;
 
     private final IItemHandler backInputHandler = new InventoryAutomationView(true, false);
     private final IItemHandler downOutputHandler = new InventoryAutomationView(false, true);
@@ -132,11 +137,34 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public double getCurrencyBalance() {
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            if (this.owner == null || this.level == null || this.level.isClientSide()) {
+                return 0.0D;
+            }
+            return NeoEssentialsEconomyService.getBalance(this.owner);
+        }
         return this.currencyBalance;
     }
 
     public boolean tryWithdrawCurrency(double amount) {
-        if (amount <= 0.0D || this.currencyBalance + 1.0E-9D < amount) {
+        if (amount <= 0.0D) {
+            return false;
+        }
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            if (this.owner == null) {
+                return false;
+            }
+            double current = NeoEssentialsEconomyService.getBalance(this.owner);
+            if (current + 1.0E-9D < amount) {
+                return false;
+            }
+            boolean ok = NeoEssentialsEconomyService.subtractBalance(this.owner, amount);
+            if (ok) {
+                this.setChanged();
+            }
+            return ok;
+        }
+        if (this.currencyBalance + 1.0E-9D < amount) {
             return false;
         }
         this.currencyBalance = Math.max(0.0D, this.currencyBalance - amount);
@@ -146,6 +174,13 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
     public void depositCurrency(double amount) {
         if (amount <= 0.0D) {
+            return;
+        }
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            if (this.owner != null) {
+                NeoEssentialsEconomyService.addBalance(this.owner, amount);
+            }
+            this.setChanged();
             return;
         }
         this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + amount);
@@ -287,6 +322,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     @Override
     public void setChanged() {
         super.setChanged();
+        this.tryMigrateStoredCurrency();
         this.queueClientSync();
     }
 
@@ -335,6 +371,9 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
     private void convertCurrencyStacksToBalance() {
         if (this.convertingCurrencyDeposit) {
+            return;
+        }
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             return;
         }
         if (ConversionService.isEnabled()) {
@@ -389,6 +428,45 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
 
         this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalCurrencyItems);
+    }
+
+    /**
+     * 一次性迁移：将 NBT 中残留的 currencyBalance 转入 NeoEssentials 经济系统。
+     * 仅在服务端、NeoEssentials 模式、有余额、未迁移、有 owner 时执行。
+     */
+    private void tryMigrateStoredCurrency() {
+        if (this.currencyMigrated) {
+            return;
+        }
+        if (Config.getCurrencyBackend() != CurrencyBackend.NEO_ESSENTIALS) {
+            this.currencyMigrated = true;
+            return;
+        }
+        if (this.currencyBalance <= 0.0D) {
+            this.currencyMigrated = true;
+            return;
+        }
+        if (this.owner == null) {
+            return;
+        }
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+        if (!(this.level instanceof ServerLevel)) {
+            return;
+        }
+
+        double toMigrate = this.currencyBalance;
+        boolean ok = NeoEssentialsEconomyService.addBalance(this.owner, toMigrate);
+        if (ok) {
+            this.currencyBalance = 0.0D;
+            this.currencyMigrated = true;
+            this.setChanged();
+            HarvistasTradingTable.LOGGER.info(
+                    "Migrated {} stored currency to NeoEssentials for owner {} at {}",
+                    toMigrate, this.owner, this.worldPosition);
+        }
+        // 失败则下次再试
     }
 
     public Direction getBackInputSide() {
@@ -525,6 +603,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         } else {
             this.currencyBalance = Math.max(0.0D, tag.getLong(TAG_CURRENCY_BALANCE));
         }
+        this.currencyMigrated = tag.getBoolean(TAG_CURRENCY_MIGRATED);
 
         ResourceLocation tradeItemId = ResourceLocation.tryParse(tag.getString(TAG_TRADE_ITEM));
         if (tradeItemId != null && BuiltInRegistries.ITEM.containsKey(tradeItemId)) {
@@ -551,6 +630,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         tag.putInt(TAG_MIN_TRADE_AMOUNT, this.minTradeAmount);
         tag.putLong(TAG_UNIT_PRICE, this.unitPrice);
         tag.putDouble(TAG_CURRENCY_BALANCE, this.currencyBalance);
+        tag.putBoolean(TAG_CURRENCY_MIGRATED, this.currencyMigrated);
     }
 
     @Override

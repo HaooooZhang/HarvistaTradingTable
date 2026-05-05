@@ -1,6 +1,7 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -100,13 +101,20 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         this.confirmTradeItemButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.trade_item.confirm"), b -> sendButton(TradingTableMenu.BUTTON_CONFIRM_TRADE_ITEM))
                 .bounds(rightX + 34, this.topPos + 58, 36, 20)
                 .build());
-        this.extractButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.extract"), b -> sendButton(TradingTableMenu.BUTTON_EXTRACT))
-                .bounds(rightX, this.topPos + 106, 76, 20)
-                .build());
-        this.saveButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.save"), b -> sendSaveWithTableName())
+        if (!Config.isNeoEssentialsMode()) {
+            this.extractButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.extract"), b -> sendButton(TradingTableMenu.BUTTON_EXTRACT))
+                    .bounds(rightX, this.topPos + 106, 76, 20)
+                    .build());
+        }
+        if (!Config.isNeoEssentialsMode()) {
+            this.saveButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.save"), b -> sendSaveWithTableName())
                 .bounds(rightX, this.topPos + 130, 76, 20)
                 .build());
-
+        }else{
+            this.saveButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.save"), b -> sendSaveWithTableName())
+                .bounds(rightX, this.topPos + 108, 76, 20)
+                .build());
+        }
         this.updateStateButtons();
     }
 
@@ -362,8 +370,13 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
         String balance = String.format(Locale.ROOT, "%.1f", this.menu.getCashierBalance());
         guiGraphics.drawString(this.font, balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
-        Item currencyItem = Config.getCurrencyItem();
-        guiGraphics.renderItem(new ItemStack(currencyItem), rightX + this.font.width(balance) + 2 + 8, this.topPos + 90);
+        if (Config.isNeoEssentialsMode()) {
+            String symbol = NeoEssentialsEconomyService.getCurrencySymbol();
+            guiGraphics.drawString(this.font, symbol, rightX + this.font.width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
+        } else {
+            Item currencyItem = Config.getCurrencyItem();
+            guiGraphics.renderItem(new ItemStack(currencyItem), rightX + this.font.width(balance) + 2 + 8, this.topPos + 90);
+        }
 
         if (this.tableNameBox != null) {
             this.tableNameBox.render(guiGraphics, mouseX, mouseY, partialTick);

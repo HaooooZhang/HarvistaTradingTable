@@ -1,6 +1,7 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
 import ink.myumoon.tradingtable.trade.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -235,8 +236,16 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         // 动态税收提示：按钮 Tooltip 不能在 init() 时静态创建，因为数量/价格会变。
         double taxAmount = TaxService.calculateTax(this.menu.getUnitPrice() * (double) this.menu.getRequestedAmount());
         if (this.executeButton != null && this.executeButton.isMouseOver(mouseX, mouseY) && taxAmount > 0.0D && this.menu.isBuyOrder()) {
-            long displayTax = (long) taxAmount;
-            Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, I18n.get(Config.getCurrencyItem().getDescriptionId()));
+            String displayTax;
+            if (Config.isNeoEssentialsMode()){
+                displayTax = String.format("%.2f", taxAmount);
+            }else{
+                displayTax = String.format("%s",(long)taxAmount);
+            }
+            String currencyName = Config.isNeoEssentialsMode()
+                    ? NeoEssentialsEconomyService.getCurrencySymbol()
+                    : I18n.get(Config.getCurrencyItem().getDescriptionId());
+            Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, currencyName);
             java.util.List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(taxComp, 180);
             guiGraphics.renderTooltip(this.font, lines, mouseX, mouseY);
         }
@@ -295,13 +304,24 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 COLOR_TEXT,
                 false);
         int currencyIconX = this.leftPos + INFO_X + this.font.width(priceText) + 3;
-        guiGraphics.renderItem(new ItemStack(Config.getCurrencyItem()), currencyIconX, priceY - 4);
-        guiGraphics.drawString(this.font,
-                Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
-                currencyIconX + 18,
-                priceY,
-                COLOR_TEXT,
-                false);
+        if (Config.isNeoEssentialsMode()) {
+            String symbol = NeoEssentialsEconomyService.getCurrencySymbol();
+            guiGraphics.drawString(this.font, symbol, currencyIconX, priceY, COLOR_TEXT, false);
+            guiGraphics.drawString(this.font,
+                    Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
+                    currencyIconX + this.font.width(NeoEssentialsEconomyService.getCurrencySymbol()) + 4,
+                    priceY,
+                    COLOR_TEXT,
+                    false);
+        } else {
+            guiGraphics.renderItem(new ItemStack(Config.getCurrencyItem()), currencyIconX, priceY - 4);
+            guiGraphics.drawString(this.font,
+                    Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
+                    currencyIconX + 18,
+                    priceY,
+                    COLOR_TEXT,
+                    false);
+        }
 
         if (this.menu.isBuyOrder()) {
             double balance = this.menu.getCurrencyBalance();
