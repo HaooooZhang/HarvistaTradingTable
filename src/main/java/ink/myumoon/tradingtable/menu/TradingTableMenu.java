@@ -54,7 +54,6 @@ public class TradingTableMenu extends AbstractContainerMenu {
     public static final int BUTTON_NAME_APPEND_LOW_BASE = 4000;
     public static final int BUTTON_NAME_APPEND_LOW_MAX = BUTTON_NAME_APPEND_LOW_BASE + 255;
 
-
     private static final int INVENTORY_START = 0;
     private static final int INVENTORY_END = INVENTORY_START + INVENTORY_SLOTS;
     private static final int TRADE_ITEM_ALIAS_START = INVENTORY_END;
@@ -105,7 +104,6 @@ public class TradingTableMenu extends AbstractContainerMenu {
             };
         }
 
-        //todo 逻辑有问题，要保存才可以有库存更新
         @Override
         public void set(int index, int value) {
             switch (index) {

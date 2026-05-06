@@ -1,7 +1,7 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
-import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -371,7 +371,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         String balance = String.format(Locale.ROOT, "%.1f", this.menu.getCashierBalance());
         guiGraphics.drawString(this.font, balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
         if (Config.isNeoEssentialsMode()) {
-            String symbol = NeoEssentialsEconomyService.getCurrencySymbol();
+            String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
             guiGraphics.drawString(this.font, symbol, rightX + this.font.width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
         } else {
             Item currencyItem = Config.getCurrencyItem();

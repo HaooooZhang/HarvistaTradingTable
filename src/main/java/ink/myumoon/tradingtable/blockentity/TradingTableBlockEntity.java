@@ -4,7 +4,7 @@ import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
-import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
@@ -141,7 +141,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             if (this.owner == null || this.level == null || this.level.isClientSide()) {
                 return 0.0D;
             }
-            return NeoEssentialsEconomyService.getBalance(this.owner);
+            return NeoEssentialsEconomyBackend.getBalance(this.owner);
         }
         return this.currencyBalance;
     }
@@ -154,11 +154,11 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             if (this.owner == null) {
                 return false;
             }
-            double current = NeoEssentialsEconomyService.getBalance(this.owner);
+            double current = NeoEssentialsEconomyBackend.getBalance(this.owner);
             if (current + 1.0E-9D < amount) {
                 return false;
             }
-            boolean ok = NeoEssentialsEconomyService.subtractBalance(this.owner, amount);
+            boolean ok = NeoEssentialsEconomyBackend.subtractBalance(this.owner, amount);
             if (ok) {
                 this.setChanged();
             }
@@ -178,7 +178,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             if (this.owner != null) {
-                NeoEssentialsEconomyService.addBalance(this.owner, amount);
+                NeoEssentialsEconomyBackend.addBalance(this.owner, amount);
             }
             this.setChanged();
             return;
@@ -457,7 +457,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
 
         double toMigrate = this.currencyBalance;
-        boolean ok = NeoEssentialsEconomyService.addBalance(this.owner, toMigrate);
+        boolean ok = NeoEssentialsEconomyBackend.addBalance(this.owner, toMigrate);
         if (ok) {
             this.currencyBalance = 0.0D;
             this.currencyMigrated = true;

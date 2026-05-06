@@ -1,7 +1,7 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
-import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.trade.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -243,7 +243,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 displayTax = String.format("%s",(long)taxAmount);
             }
             String currencyName = Config.isNeoEssentialsMode()
-                    ? NeoEssentialsEconomyService.getCurrencySymbol()
+                    ? NeoEssentialsEconomyBackend.getCurrencySymbol()
                     : I18n.get(Config.getCurrencyItem().getDescriptionId());
             Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, currencyName);
             java.util.List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(taxComp, 180);
@@ -305,11 +305,11 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 false);
         int currencyIconX = this.leftPos + INFO_X + this.font.width(priceText) + 3;
         if (Config.isNeoEssentialsMode()) {
-            String symbol = NeoEssentialsEconomyService.getCurrencySymbol();
+            String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
             guiGraphics.drawString(this.font, symbol, currencyIconX, priceY, COLOR_TEXT, false);
             guiGraphics.drawString(this.font,
                     Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
-                    currencyIconX + this.font.width(NeoEssentialsEconomyService.getCurrencySymbol()) + 4,
+                    currencyIconX + this.font.width(NeoEssentialsEconomyBackend.getCurrencySymbol()) + 4,
                     priceY,
                     COLOR_TEXT,
                     false);

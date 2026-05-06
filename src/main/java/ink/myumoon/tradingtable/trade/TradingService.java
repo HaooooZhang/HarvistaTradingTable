@@ -3,7 +3,7 @@ package ink.myumoon.tradingtable.trade;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
-import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyService;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -69,14 +69,14 @@ public final class TradingService {
 
         // NeoEssentials 模式：通过 API 检查并扣除玩家余额
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
-            double playerBalance = NeoEssentialsEconomyService.getBalance(player.getUUID());
+            double playerBalance = NeoEssentialsEconomyBackend.getBalance(player.getUUID());
             if (playerBalance + 1.0E-9D < gross) {
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
                 return TradeResult.fail("message.trading_table.stock_too_low", true);
             }
-            if (!NeoEssentialsEconomyService.subtractBalance(player.getUUID(), gross)) {
+            if (!NeoEssentialsEconomyBackend.subtractBalance(player.getUUID(), gross)) {
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             giveToPlayer(player, new ItemStack(tradeItem, amount));
@@ -147,7 +147,7 @@ public final class TradingService {
             if (!table.tryWithdrawCurrency(gross)) {
                 return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
             }
-            NeoEssentialsEconomyService.addBalance(player.getUUID(), net);
+            NeoEssentialsEconomyBackend.addBalance(player.getUUID(), net);
             return TradeResult.success("message.trading_table.trade_success");
         }
 

@@ -14,10 +14,10 @@ import java.util.UUID;
  * <p>
  * <b>所有方法必须在服务端调用。</b>
  */
-public final class NeoEssentialsEconomyService {
+public final class NeoEssentialsEconomyBackend {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private NeoEssentialsEconomyService() {
+    private NeoEssentialsEconomyBackend() {
     }
 
     // --- public API ---
@@ -190,11 +190,11 @@ public final class NeoEssentialsEconomyService {
 
     private static boolean isAvailable() {
         if (available == null) {
-            synchronized (NeoEssentialsEconomyService.class) {
+            synchronized (NeoEssentialsEconomyBackend.class) {
                 if (available == null) {
                     try {
                         Class.forName(ECONOMY_MANAGER_CLASS, false,
-                                NeoEssentialsEconomyService.class.getClassLoader());
+                                NeoEssentialsEconomyBackend.class.getClassLoader());
                         // 预热缓存
                         bigDecimalClass = Class.forName("java.math.BigDecimal");
                         bigDecimalValueOf = bigDecimalClass.getMethod("valueOf", double.class);

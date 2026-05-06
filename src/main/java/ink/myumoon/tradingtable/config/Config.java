@@ -31,6 +31,10 @@ public class Config {
             .comment("Permission level that counts as admin for management/breaking checks")
             .defineInRange("adminPermissionLevel", 2, 0, 4);
 
+    public static final ModConfigSpec.ConfigValue<Boolean> TRADE_NOTICE = BUILDER
+            .comment("Whether to show trade notice in chat")
+            .define("tradeNotice", true);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private static CurrencyBackend resolvedCurrencyBackend = CurrencyBackend.ITEM;
@@ -38,6 +42,7 @@ public class Config {
     private static Boolean resolvedCompatibilityMode = true;
     private static double resolvedTaxRate = 0.0D;
     private static int resolvedAdminPermissionLevel = 2;
+    private static Boolean resolvedAdminNotice = true;
 
     private Config() {
     }
@@ -66,6 +71,10 @@ public class Config {
         return resolvedAdminPermissionLevel;
     }
 
+    public static Boolean getTradeNotice() {
+        return resolvedAdminNotice;
+    }
+
     public static void onLoad(ModConfigEvent event) {
         if (event.getConfig().getSpec() != SPEC) {
             return;
@@ -75,6 +84,7 @@ public class Config {
         resolvedCompatibilityMode = COMPATIBILITY_MODE.get();
         resolvedTaxRate = TAX_RATE.get();
         resolvedAdminPermissionLevel = ADMIN_PERMISSION_LEVEL.get();
+        resolvedAdminNotice = TRADE_NOTICE.get();
 
 
         ResourceLocation itemId = ResourceLocation.tryParse(CURRENCY_ITEM.get().trim());
