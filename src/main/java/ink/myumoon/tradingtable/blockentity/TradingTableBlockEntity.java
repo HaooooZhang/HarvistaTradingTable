@@ -10,6 +10,7 @@ import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
 import ink.myumoon.tradingtable.trade.ConversionService;
 import ink.myumoon.tradingtable.registry.TTBlockEntities;
+import ink.myumoon.tradingtable.registry.TTBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -278,7 +279,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             this.unitPrice = 1L;
         }
         if (this.tableName.isBlank()) {
-            this.tableName = "";
+            this.tableName = Component.translatable(TTBlocks.TRADING_TABLE.get().getDescriptionId()).getString();
         }
         this.setChanged();
         return true;

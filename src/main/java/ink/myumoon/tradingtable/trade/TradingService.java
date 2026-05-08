@@ -5,6 +5,7 @@ import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -81,6 +82,9 @@ public final class TradingService {
             }
             giveToPlayer(player, new ItemStack(tradeItem, amount));
             table.depositCurrency(net);
+            if (player.level() instanceof ServerLevel serverLevel) {
+                TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+            }
             return TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -107,6 +111,9 @@ public final class TradingService {
 
         giveToPlayer(player, new ItemStack(tradeItem, amount));
         table.depositCurrency(net);
+        if (player.level() instanceof ServerLevel serverLevel) {
+            TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+        }
         return TradeResult.success("message.trading_table.trade_success");
     }
 
@@ -148,6 +155,9 @@ public final class TradingService {
                 return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
             }
             NeoEssentialsEconomyBackend.addBalance(player.getUUID(), net);
+            if (player.level() instanceof ServerLevel serverLevel) {
+                TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+            }
             return TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -174,6 +184,9 @@ public final class TradingService {
         }
 
         giveCurrencyToPlayer(player, Config.getCurrencyItem(), net);
+        if (player.level() instanceof ServerLevel serverLevel) {
+            TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+        }
         return TradeResult.success("message.trading_table.trade_success");
     }
 

@@ -1,11 +1,13 @@
 package ink.myumoon.tradingtable.menu;
 
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.trade.TradeNoticeService;
 import ink.myumoon.tradingtable.registry.TTBlocks;
 import ink.myumoon.tradingtable.registry.TTMenuTypes;
 import ink.myumoon.tradingtable.trade.TradingService;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -143,6 +145,9 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 this.cachedTradeResult = result.success() ? 1 : 0;
                 if (result.disableTable()) {
                     table.setEnabled(false);
+                    if (level instanceof ServerLevel serverLevel) {
+                        TradeNoticeService.sendDisabledNotice(serverLevel, table, result.messageKey());
+                    }
                 }
                 result.sendTo(player);
                 // Mark as handled regardless of success so data-slot changes sync to client.

@@ -42,7 +42,7 @@ public class Config {
     private static Boolean resolvedCompatibilityMode = true;
     private static double resolvedTaxRate = 0.0D;
     private static int resolvedAdminPermissionLevel = 2;
-    private static Boolean resolvedAdminNotice = true;
+    private static Boolean resolvedTradeNotice = true;
 
     private Config() {
     }
@@ -72,7 +72,7 @@ public class Config {
     }
 
     public static Boolean getTradeNotice() {
-        return resolvedAdminNotice;
+        return resolvedTradeNotice;
     }
 
     public static void onLoad(ModConfigEvent event) {
@@ -84,7 +84,7 @@ public class Config {
         resolvedCompatibilityMode = COMPATIBILITY_MODE.get();
         resolvedTaxRate = TAX_RATE.get();
         resolvedAdminPermissionLevel = ADMIN_PERMISSION_LEVEL.get();
-        resolvedAdminNotice = TRADE_NOTICE.get();
+        resolvedTradeNotice = TRADE_NOTICE.get();
 
 
         ResourceLocation itemId = ResourceLocation.tryParse(CURRENCY_ITEM.get().trim());

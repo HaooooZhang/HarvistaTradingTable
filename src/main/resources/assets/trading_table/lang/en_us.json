@@ -49,6 +49,7 @@
   "trading_table.configuration.CompatibilityMode": "Compatibility Mode",
   "trading_table.configuration.taxRate": "Tax Rate",
   "trading_table.configuration.adminPermissionLevel": "Admin Permission Level",
+  "trading_table.configuration.tradeNotice": "Trade Notice",
 
   "message.trading_table.no_permission_manage": "You do not have permission to manage this trading table.",
   "message.trading_table.no_permission_break": "Only the owner or an admin can break this initialized trading table.",
@@ -75,5 +76,11 @@
   "message.trading_table.updated_min_trade": "Minimum trade amount updated.",
   "message.trading_table.updated_price": "Unit price updated.",
   "message.trading_table.manage_saved": "Management settings saved.",
-  "message.trading_table.trade_item_saved": "Trade item saved"
+  "message.trading_table.trade_item_saved": "Trade item saved",
+
+  "message.trading_table.notice.trade_sell": "§a[Trading Table] §f%s purchased §b%d×%s §fat §e%s§f, you received §6%s §f",
+  "message.trading_table.notice.trade_buy": "§a[Trading Table] §f%s sold §b%d×%s §fto §e%s§f, you paid §6%s",
+  "message.trading_table.notice.disabled_stock": "§c[Trading Table] §fYour §e%s (%s) §fhas been disabled due to insufficient inventory",
+  "message.trading_table.notice.disabled_balance": "§c[Trading Table] §fYour §e%s (%s) §fhas been disabled due to insufficient balance",
+  "message.trading_table.notice.offline_header": "§a[Trading Table] §fWhile you were away, you earned §6%s §fand spent §6%s"
 }
