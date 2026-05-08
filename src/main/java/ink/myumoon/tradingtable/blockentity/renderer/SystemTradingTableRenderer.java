@@ -2,7 +2,7 @@ package ink.myumoon.tradingtable.blockentity.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.blockentity.SystemTradingTableBlockEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -19,17 +19,17 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import org.jetbrains.annotations.NotNull;
 
-public class TradingTableRenderer implements BlockEntityRenderer<TradingTableBlockEntity> {
-    private static final float FLOAT_PERIOD_TICKS = 80.0F; // 4 seconds (20 tps)
+public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTradingTableBlockEntity> {
+    private static final float FLOAT_PERIOD_TICKS = 80.0F;
     private static final float FLOAT_AMPLITUDE = 0.06F;
 
-    public TradingTableRenderer(BlockEntityRendererProvider.Context context) {}
+    public SystemTradingTableRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
-    public void render(@NotNull TradingTableBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
+    public void render(@NotNull SystemTradingTableBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
 
-        if (!blockEntity.isEnabled() || !blockEntity.isInitialized()){
+        if (!blockEntity.isEnabled() || !blockEntity.isInitialized()) {
             return;
         }
 
@@ -79,4 +79,3 @@ public class TradingTableRenderer implements BlockEntityRenderer<TradingTableBlo
         return LightTexture.pack(blockLight, skyLight);
     }
 }
-

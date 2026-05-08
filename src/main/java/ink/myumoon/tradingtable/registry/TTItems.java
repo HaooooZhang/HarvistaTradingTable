@@ -13,4 +13,7 @@ public final class TTItems {
 
     public static final DeferredItem<BlockItem> TRADING_TABLE_ITEM =
             ITEMS.registerSimpleBlockItem("trading_table", TTBlocks.TRADING_TABLE);
+
+    public static final DeferredItem<BlockItem> SYSTEM_TRADING_TABLE_ITEM =
+            ITEMS.registerSimpleBlockItem("system_trading_table", TTBlocks.SYSTEM_TRADING_TABLE);
 }

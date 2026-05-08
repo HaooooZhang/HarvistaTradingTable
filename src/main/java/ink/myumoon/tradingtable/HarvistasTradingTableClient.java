@@ -1,6 +1,10 @@
 package ink.myumoon.tradingtable;
 
+import ink.myumoon.tradingtable.blockentity.renderer.SystemTradingTableRenderer;
 import ink.myumoon.tradingtable.blockentity.renderer.TradingTableRenderer;
+import ink.myumoon.tradingtable.client.screen.SystemTradingTableInitScreen;
+import ink.myumoon.tradingtable.client.screen.SystemTradingTableScreen;
+import ink.myumoon.tradingtable.client.screen.SystemTradingTableTradeScreen;
 import ink.myumoon.tradingtable.client.screen.TradingTableInitScreen;
 import ink.myumoon.tradingtable.client.screen.TradingTableScreen;
 import ink.myumoon.tradingtable.client.screen.TradingTableTradeScreen;
@@ -27,9 +31,13 @@ public class HarvistasTradingTableClient {
         event.register(TTMenuTypes.TRADING_TABLE_INIT.get(), TradingTableInitScreen::new);
         event.register(TTMenuTypes.TRADING_TABLE_TRADE.get(), TradingTableTradeScreen::new);
         event.register(TTMenuTypes.TRADING_TABLE_MANAGE.get(), TradingTableScreen::new);
+        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_INIT.get(), SystemTradingTableInitScreen::new);
+        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_TRADE.get(), SystemTradingTableTradeScreen::new);
+        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_MANAGE.get(), SystemTradingTableScreen::new);
     }
 
     private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(TTBlockEntities.TRADING_TABLE.get(), TradingTableRenderer::new);
+        event.registerBlockEntityRenderer(TTBlockEntities.SYSTEM_TRADING_TABLE.get(), SystemTradingTableRenderer::new);
     }
 }

@@ -2,6 +2,8 @@
   "itemGroup.trading_table": "Harvista's Trading Table",
   "block.trading_table.trading_table": "Trading Table",
   "item.trading_table.trading_table": "Trading Table",
+  "block.trading_table.system_trading_table": "System Trading Table",
+  "item.trading_table.system_trading_table": "System Trading Table",
 
   "container.trading_table.trading_table": "Trading Table",
   "container.trading_table.init": "Initialization Screen",

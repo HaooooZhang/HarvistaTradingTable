@@ -190,7 +190,7 @@ public final class TradingService {
         return TradeResult.success("message.trading_table.trade_success");
     }
 
-    private static int countInPlayer(Player player, Item item) {
+    public static int countInPlayer(Player player, Item item) {
         int total = 0;
         for (ItemStack stack : player.getInventory().items) {
             if (stack.is(item)) {
@@ -200,7 +200,7 @@ public final class TradingService {
         return total;
     }
 
-    private static int countInHandler(ItemStackHandler handler, Item item) {
+    public static int countInHandler(ItemStackHandler handler, Item item) {
         int total = 0;
         for (int i = 0; i < handler.getSlots(); i++) {
             ItemStack stack = handler.getStackInSlot(i);
@@ -211,7 +211,7 @@ public final class TradingService {
         return total;
     }
 
-    private static boolean removeFromPlayer(Player player, Item item, double amount) {
+    public static boolean removeFromPlayer(Player player, Item item, double amount) {
         long wholeAmount = (long) Math.floor(amount);
         if (wholeAmount <= 0L) {
             return false;
@@ -229,7 +229,7 @@ public final class TradingService {
         return remaining == 0L;
     }
 
-    private static boolean removeMixedCurrencyFromPlayer(Player player, double amount) {
+    public static boolean removeMixedCurrencyFromPlayer(Player player, double amount) {
         long wholeAmount = (long) Math.floor(amount);
         if (wholeAmount <= 0L) {
             return false;
@@ -296,7 +296,7 @@ public final class TradingService {
         return true;
     }
 
-    private static boolean removeFromHandler(ItemStackHandler handler, Item item, int amount) {
+    public static boolean removeFromHandler(ItemStackHandler handler, Item item, int amount) {
         int remaining = amount;
         for (int i = 0; i < handler.getSlots() && remaining > 0; i++) {
             ItemStack stack = handler.getStackInSlot(i);
@@ -310,7 +310,7 @@ public final class TradingService {
         return remaining == 0;
     }
 
-    private static ItemStack insertIntoHandler(ItemStackHandler handler, ItemStack toInsert, boolean simulate) {
+    public static ItemStack insertIntoHandler(ItemStackHandler handler, ItemStack toInsert, boolean simulate) {
         ItemStack remainder = toInsert;
         for (int i = 0; i < handler.getSlots() && !remainder.isEmpty(); i++) {
             remainder = handler.insertItem(i, remainder, simulate);
@@ -318,7 +318,7 @@ public final class TradingService {
         return remainder;
     }
 
-    private static void giveToPlayer(Player player, ItemStack stack) {
+    public static void giveToPlayer(Player player, ItemStack stack) {
         if (stack.isEmpty()) {
             return;
         }
@@ -332,7 +332,7 @@ public final class TradingService {
         player.level().addFreshEntity(drop);
     }
 
-    private static void giveCurrencyToPlayer(Player player, Item currencyItem, double amount) {
+    public static void giveCurrencyToPlayer(Player player, Item currencyItem, double amount) {
         long wholeAmount = (long) Math.floor(amount);
         if (wholeAmount <= 0L) {
             return;

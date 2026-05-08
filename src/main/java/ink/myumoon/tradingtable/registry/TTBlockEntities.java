@@ -1,6 +1,7 @@
 package ink.myumoon.tradingtable.registry;
 
 import ink.myumoon.tradingtable.HarvistasTradingTable;
+import ink.myumoon.tradingtable.blockentity.SystemTradingTableBlockEntity;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -17,6 +18,11 @@ public final class TTBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TradingTableBlockEntity>> TRADING_TABLE =
             BLOCK_ENTITY_TYPES.register("trading_table", () -> BlockEntityType.Builder
                     .of(TradingTableBlockEntity::new, TTBlocks.TRADING_TABLE.get())
+                    .build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SystemTradingTableBlockEntity>> SYSTEM_TRADING_TABLE =
+            BLOCK_ENTITY_TYPES.register("system_trading_table", () -> BlockEntityType.Builder
+                    .of(SystemTradingTableBlockEntity::new, TTBlocks.SYSTEM_TRADING_TABLE.get())
                     .build(null));
 }
 

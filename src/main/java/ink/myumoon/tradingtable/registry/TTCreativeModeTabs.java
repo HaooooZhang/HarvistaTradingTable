@@ -18,8 +18,10 @@ public final class TTCreativeModeTabs {
             .title(Component.translatable("itemGroup.trading_table"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
             .icon(() -> TTItems.TRADING_TABLE_ITEM.get().getDefaultInstance())
-            .displayItems((parameters, output) -> output.accept(
-                    TTItems.TRADING_TABLE_ITEM.get()))
+            .displayItems((parameters, output) -> {
+                output.accept(TTItems.TRADING_TABLE_ITEM.get());
+                output.accept(TTItems.SYSTEM_TRADING_TABLE_ITEM.get());
+            })
             .build());
 }
 

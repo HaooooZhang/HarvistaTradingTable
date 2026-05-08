@@ -3,6 +3,8 @@
 
   "block.trading_table.trading_table": "贸易台",
   "item.trading_table.trading_table": "贸易台",
+  "block.trading_table.system_trading_table": "系统贸易台",
+  "item.trading_table.system_trading_table": "系统贸易台",
 
   "container.trading_table.trading_table": "贸易台",
   "container.trading_table.init": "初始化",
@@ -28,10 +30,11 @@
   "ui.trading_table.manage.disable": "关闭",
   "ui.trading_table.manage.save": "保存",
   "ui.trading_table.manage.name": "贸易台名称",
-  "ui.trading_table.manage.trade_item": "交易物品",
+  "ui.trading_table.manage.trade_item": "贸易物品",
   "ui.trading_table.manage.trade_item.confirm": "确认",
   "ui.trading_table.manage.currency": "余额",
   "ui.trading_table.manage.extract": "提取",
+
   "ui.trading_table.init.name": "输入名称",
   "ui.trading_table.init.trade_item": "贸易物品",
   "ui.trading_table.init.price": "价格",
