@@ -1,43 +1,31 @@
 package ink.myumoon.tradingtable;
 
-import ink.myumoon.tradingtable.blockentity.renderer.SystemTradingTableRenderer;
-import ink.myumoon.tradingtable.blockentity.renderer.TradingTableRenderer;
-import ink.myumoon.tradingtable.client.screen.SystemTradingTableInitScreen;
-import ink.myumoon.tradingtable.client.screen.SystemTradingTableScreen;
-import ink.myumoon.tradingtable.client.screen.SystemTradingTableTradeScreen;
-import ink.myumoon.tradingtable.client.screen.TradingTableInitScreen;
-import ink.myumoon.tradingtable.client.screen.TradingTableScreen;
-import ink.myumoon.tradingtable.client.screen.TradingTableTradeScreen;
-import ink.myumoon.tradingtable.registry.TTBlockEntities;
-import ink.myumoon.tradingtable.registry.TTMenuTypes;
+import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
+// This class will not load on dedicated servers. Accessing client side code from here is safe.
 @Mod(value = HarvistasTradingTable.MODID, dist = Dist.CLIENT)
+// You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
+@EventBusSubscriber(modid = HarvistasTradingTable.MODID, value = Dist.CLIENT)
 public class HarvistasTradingTableClient {
-    public HarvistasTradingTableClient(IEventBus modEventBus, ModContainer container) {
+    public HarvistasTradingTableClient(ModContainer container) {
+        // Allows NeoForge to create a config screen for this mod's configs.
+        // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
+        // Do not forget to add translations for your config options to the en_us.json file.
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-        modEventBus.addListener(this::registerMenuScreens);
-        modEventBus.addListener(this::registerRenderers);
     }
 
-    private void registerMenuScreens(RegisterMenuScreensEvent event) {
-        event.register(TTMenuTypes.TRADING_TABLE_INIT.get(), TradingTableInitScreen::new);
-        event.register(TTMenuTypes.TRADING_TABLE_TRADE.get(), TradingTableTradeScreen::new);
-        event.register(TTMenuTypes.TRADING_TABLE_MANAGE.get(), TradingTableScreen::new);
-        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_INIT.get(), SystemTradingTableInitScreen::new);
-        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_TRADE.get(), SystemTradingTableTradeScreen::new);
-        event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_MANAGE.get(), SystemTradingTableScreen::new);
-    }
-
-    private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(TTBlockEntities.TRADING_TABLE.get(), TradingTableRenderer::new);
-        event.registerBlockEntityRenderer(TTBlockEntities.SYSTEM_TRADING_TABLE.get(), SystemTradingTableRenderer::new);
+    @SubscribeEvent
+    static void onClientSetup(FMLClientSetupEvent event) {
+        // Some client setup code
+        HarvistasTradingTable.LOGGER.info("HELLO FROM CLIENT SETUP");
+        HarvistasTradingTable.LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
     }
 }

@@ -1,7 +1,0 @@
-{
-  "replace": false,
-  "values": [
-    "trading_table:trading_table",
-    "trading_table:system_trading_table"
-  ]
-}
