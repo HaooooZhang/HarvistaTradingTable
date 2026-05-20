@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "CCC",
+    "BAB",
+    "BEB"
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "B": {
+      "tag": "minecraft:planks"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    },
+    "A": {
+      "item": "minecraft:chest"
+    }
+  },
+  "result": {
+    "id": "trading_table:trading_table",
+    "count": 1
+  }
+}

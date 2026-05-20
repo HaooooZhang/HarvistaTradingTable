@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "trading_table:trading_table"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "trading_table:blocks/trading_table"
+}
