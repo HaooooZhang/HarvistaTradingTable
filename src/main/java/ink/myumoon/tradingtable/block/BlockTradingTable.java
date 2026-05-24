@@ -1,10 +1,11 @@
 package ink.myumoon.tradingtable.block;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.blockentity.OpenMenuMode;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.registries.TTBlocks;
+import ink.myumoon.tradingtable.trade.ConversionService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -118,8 +119,8 @@ public class BlockTradingTable extends Block implements EntityBlock {
 
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof TradingTableBlockEntity tradingTableBlockEntity) {
-            for (int i = 0; i < tradingTableBlockEntity.getInventoryHandler().getSlots(); i++) {
-                ItemStack stack = tradingTableBlockEntity.getInventoryHandler().getStackInSlot(i);
+            for (int i = 0; i < tradingTableBlockEntity.getInventoryHandler().size(); i++) {
+                ItemStack stack = tradingTableBlockEntity.getInventoryHandler().copyToList().get(i);
                 if (!stack.isEmpty()) {
                     Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
                 }

@@ -1,6 +1,9 @@
 package ink.myumoon.tradingtable;
 
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.registries.TTRegistries;
+import ink.myumoon.tradingtable.trade.TradeNoticeService;
+import ink.myumoon.tradingtable.util.TradingTableCapabilities;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.slf4j.Logger;

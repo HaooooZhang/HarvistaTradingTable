@@ -1,29 +1,46 @@
 package ink.myumoon.tradingtable.blockentity;
 
-import ink.myumoon.tradingtable.Config;
+import ink.myumoon.tradingtable.HarvistasTradingTable;
+import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
+import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
+import ink.myumoon.tradingtable.menu.TradingTableMenu;
+import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import ink.myumoon.tradingtable.registries.TTBlockEntities;
 import ink.myumoon.tradingtable.registries.TTBlocks;
+import ink.myumoon.tradingtable.trade.ConversionService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.NonNull;
 
@@ -99,8 +116,14 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         return this.owner != null && this.owner.equals(player.getUUID());
     }
 
+    // 26.1.2: player.permissions() 返回 PermissionSet，不再返回 int
     public boolean isAdmin(Player player) {
-        return player.permissions() >= Config.getAdminPermissionLevel();
+        PermissionSet perms = player.permissions();
+        if (perms instanceof LevelBasedPermissionSet lbs) {
+            PermissionLevel required = PermissionLevel.byId(Config.getAdminPermissionLevel());
+            return lbs.level().isEqualOrHigherThan(required);
+        }
+        return false;
     }
 
     public boolean canManage(Player player) {
@@ -246,7 +269,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
         int total = 0;
         for (int i = 0; i < this.inventory.size(); i++) {
-            ItemStack stack = this.inventory.get;
+            ItemStack stack = this.inventory.copyToList().get(i);
             if (stack.is(this.tradeItem)) {
                 total += stack.getCount();
             }
@@ -255,7 +278,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public boolean initializeDefaultsFrom(Player player) {
-        ItemStack configured = this.inventory.getStackInSlot(0);
+        ItemStack configured = this.inventory.copyToList().getFirst();
         if (!configured.isEmpty()) {
             this.tradeItem = configured.getItem();
         } else if (this.tradeItem == null && !player.getMainHandItem().isEmpty()) {
@@ -279,7 +302,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public boolean canFinalizeInitialization(@Nullable Player player) {
-        ItemStack configured = this.inventory.getStackInSlot(0);
+        ItemStack configured = this.inventory.copyToList().getFirst();
         if (!configured.isEmpty()) {
             this.tradeItem = configured.getItem();
         } else if (this.tradeItem == null && player != null && !player.getMainHandItem().isEmpty()) {
@@ -370,8 +393,8 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             long totalValue = 0L;
             this.convertingCurrencyDeposit = true;
             try {
-                for (int i = 0; i < this.inventory.getSlots(); i++) {
-                    ItemStack stack = this.inventory.getStackInSlot(i);
+                for (int i = 0; i < this.inventory.size(); i++) {
+                    ItemStack stack = this.inventory.copyToList().get(i);
                     if (stack.isEmpty()) {
                         continue;
                     }
@@ -380,7 +403,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
                         continue;
                     }
                     totalValue += value * stack.getCount();
-                    this.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                    this.inventory.set(i, ItemResource.EMPTY, 0);
                 }
             } finally {
                 this.convertingCurrencyDeposit = false;
@@ -394,8 +417,8 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
         Item currencyItem = Config.getCurrencyItem();
         int totalCurrencyItems = 0;
-        for (int i = 0; i < this.inventory.getSlots(); i++) {
-            ItemStack stack = this.inventory.getStackInSlot(i);
+        for (int i = 0; i < this.inventory.size(); i++) {
+            ItemStack stack = this.inventory.copyToList().get(i);
             if (stack.is(currencyItem)) {
                 totalCurrencyItems += stack.getCount();
             }
@@ -406,12 +429,12 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
         this.convertingCurrencyDeposit = true;
         try {
-            for (int i = 0; i < this.inventory.getSlots(); i++) {
-                ItemStack stack = this.inventory.getStackInSlot(i);
+            for (int i = 0; i < this.inventory.size(); i++) {
+                ItemStack stack = this.inventory.copyToList().get(i);
                 if (!stack.is(currencyItem)) {
                     continue;
                 }
-                this.inventory.setStackInSlot(i, ItemStack.EMPTY);
+                this.inventory.set(i, ItemResource.EMPTY, 0);
             }
         } finally {
             this.convertingCurrencyDeposit = false;
@@ -420,10 +443,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalCurrencyItems);
     }
 
-    /**
-     * 一次性迁移：将 NBT 中残留的 currencyBalance 转入 NeoEssentials 经济系统。
-     * 仅在服务端、NeoEssentials 模式、有余额、未迁移、有 owner 时执行。
-     */
+    // 迁移，其实还没有实现
     private void tryMigrateStoredCurrency() {
         if (this.currencyMigrated) {
             return;
@@ -471,7 +491,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     }
 
     @Nullable
-    public IItemHandler getItemHandlerForSide(@Nullable Direction side) {
+    public ResourceHandler<ItemResource> getItemHandlerForSide(@Nullable Direction side) {
         if (side == null) {
             return this.inventory;
         }
@@ -500,12 +520,11 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    @Override
-    public @org.jspecify.annotations.Nullable AbstractContainerMenu createMenu(int i, Inventory inventory, Player player) {
-        return null;
-    }
-
-    private class InventoryAutomationView implements IItemHandler {
+    /**
+     * 自动化视图：根据 canInsert/canExtract 限制对 inventory 的访问。
+     * 26.1.2: 纯 ResourceHandler<ItemResource> API，不再混用 IItemHandler。
+     */
+    private class InventoryAutomationView implements ResourceHandler<ItemResource> {
         private final boolean canInsert;
         private final boolean canExtract;
 
@@ -515,39 +534,44 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
 
         @Override
-        public int getSlots() {
-            return inventory.getSlots();
+        public int size() {
+            return inventory.size();
         }
 
         @Override
-        public ItemStack getStackInSlot(int slot) {
-            return inventory.getStackInSlot(slot);
+        public ItemResource getResource(int index) {
+            return inventory.getResource(index);
         }
 
         @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+        public long getAmountAsLong(int index) {
+            return inventory.getAmountAsLong(index);
+        }
+
+        @Override
+        public long getCapacityAsLong(int index, ItemResource resource) {
+            return inventory.getCapacityAsLong(index, resource);
+        }
+
+        @Override
+        public boolean isValid(int index, ItemResource resource) {
+            return inventory.isValid(index, resource);
+        }
+
+        @Override
+        public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
             if (!this.canInsert) {
-                return stack;
+                return 0;
             }
-            return inventory.insertItem(slot, stack, simulate);
+            return inventory.insert(index, resource, amount, transaction);
         }
 
         @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+        public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
             if (!this.canExtract) {
-                return ItemStack.EMPTY;
+                return 0;
             }
-            return inventory.extractItem(slot, amount, simulate);
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return inventory.getSlotLimit(slot);
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            return this.canInsert && inventory.isItemValid(slot, stack);
+            return inventory.extract(index, resource, amount, transaction);
         }
     }
 
@@ -576,56 +600,63 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         };
     }
 
+    // saveAdditional/loadAdditional 改用 ValueOutput/ValueInput
     @Override
-    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        this.inventory.deserializeNBT(registries, tag.getCompound(TAG_INVENTORY));
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
 
-        if (tag.hasUUID(TAG_OWNER)) {
-            this.owner = tag.getUUID(TAG_OWNER);
+        // UUID 存储为字符串
+        String ownerStr = input.getStringOr(TAG_OWNER, "");
+        if (!ownerStr.isEmpty()) {
+            try {
+                this.owner = UUID.fromString(ownerStr);
+            } catch (IllegalArgumentException e) {
+                this.owner = null;
+            }
         } else {
             this.owner = null;
         }
 
-        this.initialized = tag.getBoolean(TAG_IS_INITIALIZED);
-        this.enabled = tag.getBoolean(TAG_IS_ENABLED);
-        this.tableName = sanitizeTableName(tag.getString(TAG_TABLE_NAME));
-        this.buyOrder = tag.getBoolean(TAG_IS_BUY_ORDER);
-        this.minTradeAmount = Math.max(1, tag.getInt(TAG_MIN_TRADE_AMOUNT));
-        this.unitPrice = Math.max(1L, tag.getLong(TAG_UNIT_PRICE));
-        if (tag.contains(TAG_CURRENCY_BALANCE, Tag.TAG_DOUBLE)) {
-            this.currencyBalance = Math.max(0.0D, tag.getDouble(TAG_CURRENCY_BALANCE));
-        } else {
-            this.currencyBalance = Math.max(0.0D, tag.getLong(TAG_CURRENCY_BALANCE));
-        }
-        this.currencyMigrated = tag.getBoolean(TAG_CURRENCY_MIGRATED);
+        this.initialized = input.getBooleanOr(TAG_IS_INITIALIZED, false);
+        this.enabled = input.getBooleanOr(TAG_IS_ENABLED, false);
+        this.tableName = sanitizeTableName(input.getStringOr(TAG_TABLE_NAME, ""));
+        this.buyOrder = input.getBooleanOr(TAG_IS_BUY_ORDER, false);
+        this.minTradeAmount = Math.max(1, input.getIntOr(TAG_MIN_TRADE_AMOUNT, 1));
+        this.unitPrice = Math.max(1L, input.getLongOr(TAG_UNIT_PRICE, 1L));
+        this.currencyBalance = Math.max(0.0D, input.getDoubleOr(TAG_CURRENCY_BALANCE, 0.0D));
+        this.currencyMigrated = input.getBooleanOr(TAG_CURRENCY_MIGRATED, false);
 
-        ResourceLocation tradeItemId = ResourceLocation.tryParse(tag.getString(TAG_TRADE_ITEM));
-        if (tradeItemId != null && BuiltInRegistries.ITEM.containsKey(tradeItemId)) {
-            this.tradeItem = BuiltInRegistries.ITEM.get(tradeItemId);
-        } else {
-            this.tradeItem = null;
-        }
+        String tradeItemStr = input.getStringOr(TAG_TRADE_ITEM, "");
+        Identifier tradeItemId = Identifier.tryParse(tradeItemStr);
+        this.tradeItem = tradeItemId != null
+                ? BuiltInRegistries.ITEM.get(tradeItemId).map(Holder.Reference::value).orElse(null)
+                : null;
+
+        // ValueInputExtension.readChild 直接处理 ValueIOSerializable
+        input.readChild(TAG_INVENTORY, this.inventory);
     }
 
     @Override
-    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put(TAG_INVENTORY, this.inventory.serializeNBT(registries));
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+
         if (this.owner != null) {
-            tag.putUUID(TAG_OWNER, this.owner);
+            output.putString(TAG_OWNER, this.owner.toString());
         }
-        tag.putBoolean(TAG_IS_INITIALIZED, this.initialized);
-        tag.putBoolean(TAG_IS_ENABLED, this.enabled);
-        tag.putString(TAG_TABLE_NAME, this.tableName);
+        output.putBoolean(TAG_IS_INITIALIZED, this.initialized);
+        output.putBoolean(TAG_IS_ENABLED, this.enabled);
+        output.putString(TAG_TABLE_NAME, this.tableName);
         if (this.tradeItem != null) {
-            tag.putString(TAG_TRADE_ITEM, BuiltInRegistries.ITEM.getKey(this.tradeItem).toString());
+            output.putString(TAG_TRADE_ITEM, BuiltInRegistries.ITEM.getKey(this.tradeItem).toString());
         }
-        tag.putBoolean(TAG_IS_BUY_ORDER, this.buyOrder);
-        tag.putInt(TAG_MIN_TRADE_AMOUNT, this.minTradeAmount);
-        tag.putLong(TAG_UNIT_PRICE, this.unitPrice);
-        tag.putDouble(TAG_CURRENCY_BALANCE, this.currencyBalance);
-        tag.putBoolean(TAG_CURRENCY_MIGRATED, this.currencyMigrated);
+        output.putBoolean(TAG_IS_BUY_ORDER, this.buyOrder);
+        output.putInt(TAG_MIN_TRADE_AMOUNT, this.minTradeAmount);
+        output.putLong(TAG_UNIT_PRICE, this.unitPrice);
+        output.putDouble(TAG_CURRENCY_BALANCE, this.currencyBalance);
+        output.putBoolean(TAG_CURRENCY_MIGRATED, this.currencyMigrated);
+
+        // ValueOutputExtension.putChild 直接处理 ValueIOSerializable
+        output.putChild(TAG_INVENTORY, this.inventory);
     }
 
     @Override
@@ -636,10 +667,5 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     @Override
     public @Nullable Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void handleUpdateTag(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
-        this.loadAdditional(tag, registries);
     }
 }

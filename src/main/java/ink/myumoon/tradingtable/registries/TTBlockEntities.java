@@ -1,5 +1,7 @@
 package ink.myumoon.tradingtable.registries;
 
+import java.util.Set;
+
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -11,13 +13,16 @@ public final class TTBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, HarvistasTradingTable.MODID);
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TradingTableBlockEntity>> TRADING_TABLE =
-            BLOCK_ENTITY_TYPES.register("trading_table", () -> BlockEntityType.Builder
-                    .of(TradingTableBlockEntity::new, TTBlocks.TRADING_TABLE.get())
-                    .build(null));
+//    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TradingTableBlockEntity>> TRADING_TABLE =
+//            BLOCK_ENTITY_TYPES.register("trading_table", () -> BlockEntityType.Builder
+//                    .of(TradingTableBlockEntity::new, TTBlocks.TRADING_TABLE.get())
+//                    .build(null));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SystemTradingTableBlockEntity>> SYSTEM_TRADING_TABLE =
-            BLOCK_ENTITY_TYPES.register("system_trading_table", () -> BlockEntityType.Builder
-                    .of(SystemTradingTableBlockEntity::new, TTBlocks.SYSTEM_TRADING_TABLE.get())
-                    .build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TradingTableBlockEntity>> TRADING_TABLE =
+            BLOCK_ENTITY_TYPES.register("trading_table", () -> new BlockEntityType<>(TradingTableBlockEntity::new, Set.of(TTBlocks.TRADING_TABLE.get())));
+
+//    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SystemTradingTableBlockEntity>> SYSTEM_TRADING_TABLE =
+//            BLOCK_ENTITY_TYPES.register("system_trading_table", () -> BlockEntityType.Builder
+//                    .of(SystemTradingTableBlockEntity::new, TTBlocks.SYSTEM_TRADING_TABLE.get())
+//                    .build(null));
 }

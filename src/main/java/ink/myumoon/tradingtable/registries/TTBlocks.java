@@ -21,13 +21,13 @@ public final class TTBlocks {
                     .requiresCorrectToolForDrops()
             ));
 
-    public static final DeferredBlock<BlockSystemTradingTable> SYSTEM_TRADING_TABLE = BLOCKS.register(
-            "system_trading_table",() -> new BlockSystemTradingTable(BlockBehaviour.Properties
-                    .ofFullCopy(Blocks.COPPER_BLOCK)
-                    .strength(2F)
-                    .explosionResistance(1200f)
-                    .lightLevel(state -> state.getValue(BlockSystemTradingTable.INITIALIZED) ? 7 : 0)
-                    .sound(SoundType.COPPER)
-                    .requiresCorrectToolForDrops()
-            ));
+//    public static final DeferredBlock<BlockSystemTradingTable> SYSTEM_TRADING_TABLE = BLOCKS.register(
+//        "system_trading_table",() -> new BlockSystemTradingTable(BlockBehaviour.Properties
+//                .ofFullCopy(Blocks.COPPER_BLOCK)
+//                .strength(2F)
+//                .explosionResistance(1200f)
+//                .lightLevel(state -> state.getValue(BlockSystemTradingTable.INITIALIZED) ? 7 : 0)
+//                .sound(SoundType.COPPER)
+//                .requiresCorrectToolForDrops()
+//        ));
 }
