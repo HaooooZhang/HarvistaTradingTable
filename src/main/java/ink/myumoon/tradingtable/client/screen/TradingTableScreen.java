@@ -48,10 +48,9 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     private long headerScrollTime;
 
     public TradingTableScreen(TradingTableMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        this.width = 336;
-        this.height = 166;
+        super(menu, playerInventory, title, 336, 166);
         this.inventoryLabelY = 10000;
+        this.titleLabelY = 10000;
     }
 
     @Override
@@ -204,7 +203,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         return super.charTyped(event);
     }
 
-    // tick() in 26.1.2 is final, moved to extractRenderState
+    // tick() 在 26.1.2 是 final，更新逻辑移到 extractRenderState
 
     private void sendButton(int id) {
         if (this.minecraft != null && this.minecraft.gameMode != null) {
@@ -399,7 +398,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     @Override
     public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(g, mouseX, mouseY, partialTick);
     }
 }
-
 

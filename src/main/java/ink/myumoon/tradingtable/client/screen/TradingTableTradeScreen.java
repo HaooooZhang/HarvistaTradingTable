@@ -2,6 +2,7 @@ package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
+import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.trade.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -53,9 +54,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
     private long headerScrollTime;
 
     public TradingTableTradeScreen(TradingTableTradeMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        this.width = 176;
-        this.height = 190;
+        super(menu, playerInventory, title, 176, 190);
         this.inventoryLabelY = 10000;
     }
 
@@ -80,7 +79,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 .tooltip(stepTooltip)
                 .build());
 
-        // 动�?Tooltip 不能�?init 时静态创�?—�?保存按钮引用，在 render 时根据当前数值动态显示提�?
+        // 动态 Tooltip 不能在 init 时静态创建 —— 保存按钮引用，在 render 时根据当前数值动态显示提示
         this.executeButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.execute"), b -> this.handleTradeClick())
                 .bounds(executeX, executeY, executeWidth, 20)
                 .build());
@@ -345,7 +344,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
     @Override
     public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         g.blit(RenderPipelines.GUI_TEXTURED, TRADE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(g, mouseX, mouseY, partialTick);
     }
 }
-
 

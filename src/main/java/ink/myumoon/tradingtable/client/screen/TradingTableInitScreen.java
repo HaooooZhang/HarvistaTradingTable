@@ -51,10 +51,9 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     private long headerScrollTime;
 
     public TradingTableInitScreen(TradingTableInitMenu menu, Inventory playerInventory, Component title) {
-        super(menu, playerInventory, title);
-        this.width = 176;
-        this.height = 190;
+        super(menu, playerInventory, title, 176, 190);
         this.inventoryLabelY = 10000;
+        this.titleLabelY = 10000;
     }
 
     @Override
@@ -346,6 +345,6 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
     @Override
     public void extractContents(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
     }
 }
-
