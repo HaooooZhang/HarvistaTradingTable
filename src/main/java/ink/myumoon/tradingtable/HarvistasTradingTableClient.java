@@ -7,6 +7,7 @@ import ink.myumoon.tradingtable.client.screen.TradingTableTradeScreen;
 import ink.myumoon.tradingtable.registries.TTBlockEntities;
 import ink.myumoon.tradingtable.registries.TTMenuTypes;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -20,13 +21,10 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 @Mod(value = HarvistasTradingTable.MODID, dist = Dist.CLIENT)
 @EventBusSubscriber(modid = HarvistasTradingTable.MODID, value = Dist.CLIENT)
 public class HarvistasTradingTableClient {
-    public HarvistasTradingTableClient(ModContainer container) {
+    public HarvistasTradingTableClient(IEventBus modEventBus, ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-    }
-
-    @SubscribeEvent
-    static void onClientSetup(FMLClientSetupEvent event) {
-
+        modEventBus.addListener(this::registerMenuScreens);
+        modEventBus.addListener(this::registerEntityRenderers);
     }
 
     private void registerMenuScreens(RegisterMenuScreensEvent event) {
@@ -38,8 +36,7 @@ public class HarvistasTradingTableClient {
         // event.register(TTMenuTypes.SYSTEM_TRADING_TABLE_MANAGE.get(), SystemTradingTableScreen::new);
     }
 
-    @SubscribeEvent
-    public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+    public void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(
                 TTBlockEntities.TRADING_TABLE.get(),
                 TradingTableRenderer::new

@@ -1,19 +1,24 @@
 package ink.myumoon.tradingtable.trade;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,8 +39,6 @@ import java.util.UUID;
  * 所有操作受 {@link Config#getTradeNotice()} 控制。
  */
 public final class TradeNoticeService extends SavedData {
-    private static final String DATA_NAME = "trading_table_notices";
-
     private static final String TAG_EARNED = "Earned";
     private static final String TAG_SPENT = "Spent";
     private static final String TAG_DISABLED = "Disabled";
@@ -44,31 +47,43 @@ public final class TradeNoticeService extends SavedData {
     private static final String TAG_IS_STOCK = "IsStock";
 
     // 收入通知
-    private final Map<UUID, double[]> pending = new LinkedHashMap<>();
+    final Map<UUID, double[]> pending = new LinkedHashMap<>();
 
     // 关闭通知
-    private final Map<UUID, List<DisabledRecord>> disabledNotices = new LinkedHashMap<>();
+    final Map<UUID, List<DisabledRecord>> disabledNotices = new LinkedHashMap<>();
 
-    private static final Factory<TradeNoticeService> FACTORY =
-            new Factory<>(TradeNoticeService::new, TradeNoticeService::load);
+    // 26.1.2: save()/load() 移除 → Codec 驱动序列化
+    private static final Codec<TradeNoticeService> CODEC = CompoundTag.CODEC.comapFlatMap(
+            tag -> DataResult.success(decode(tag)),
+            TradeNoticeService::encode
+    );
+
+    // 26.1.2: SavedData.Factory → SavedDataType record
+    public static final SavedDataType<TradeNoticeService> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath(HarvistasTradingTable.MODID, "trading_table_notices"),
+            TradeNoticeService::new,
+            CODEC,
+            DataFixTypes.LEVEL
+    );
 
     private TradeNoticeService() {
     }
 
     public static TradeNoticeService get(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
     }
 
+    // === Codec 编解码 ===
 
-    @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        for (Map.Entry<UUID, double[]> entry : this.pending.entrySet()) {
-            CompoundTag playerTag = tag.getCompound(entry.getKey().toString());
+    private static CompoundTag encode(TradeNoticeService data) {
+        CompoundTag tag = new CompoundTag();
+        for (Map.Entry<UUID, double[]> entry : data.pending.entrySet()) {
+            CompoundTag playerTag = new CompoundTag();
             playerTag.putDouble(TAG_EARNED, entry.getValue()[0]);
             playerTag.putDouble(TAG_SPENT, entry.getValue()[1]);
             tag.put(entry.getKey().toString(), playerTag);
         }
-        for (Map.Entry<UUID, List<DisabledRecord>> entry : this.disabledNotices.entrySet()) {
+        for (Map.Entry<UUID, List<DisabledRecord>> entry : data.disabledNotices.entrySet()) {
             ListTag list = new ListTag();
             for (DisabledRecord rec : entry.getValue()) {
                 CompoundTag recTag = new CompoundTag();
@@ -77,39 +92,41 @@ public final class TradeNoticeService extends SavedData {
                 recTag.putBoolean(TAG_IS_STOCK, rec.isStock);
                 list.add(recTag);
             }
-            CompoundTag playerTag = tag.getCompound(entry.getKey().toString());
+            CompoundTag playerTag = tag.getCompoundOrEmpty(entry.getKey().toString());
             playerTag.put(TAG_DISABLED, list);
             tag.put(entry.getKey().toString(), playerTag);
         }
         return tag;
     }
 
-    public static TradeNoticeService load(CompoundTag tag, HolderLookup.Provider registries) {
+    private static TradeNoticeService decode(CompoundTag tag) {
         TradeNoticeService data = new TradeNoticeService();
-        for (String key : tag.getAllKeys()) {
+        for (String key : tag.keySet()) {
             UUID uuid;
             try {
                 uuid = UUID.fromString(key);
             } catch (IllegalArgumentException e) {
                 continue;
             }
-            CompoundTag playerTag = tag.getCompound(key);
+            CompoundTag playerTag = tag.getCompoundOrEmpty(key);
             if (playerTag.contains(TAG_EARNED) || playerTag.contains(TAG_SPENT)) {
-                double earned = playerTag.getDouble(TAG_EARNED);
-                double spent = playerTag.getDouble(TAG_SPENT);
+                double earned = playerTag.getDoubleOr(TAG_EARNED, 0.0D);
+                double spent = playerTag.getDoubleOr(TAG_SPENT, 0.0D);
                 data.pending.put(uuid, new double[]{earned, spent});
             }
             if (playerTag.contains(TAG_DISABLED)) {
                 List<DisabledRecord> records = new ArrayList<>();
-                ListTag list = playerTag.getList(TAG_DISABLED, Tag.TAG_COMPOUND);
+                ListTag list = playerTag.getListOrEmpty(TAG_DISABLED);
                 for (int i = 0; i < list.size(); i++) {
-                    records.add(DisabledRecord.fromNbt(list.getCompound(i)));
+                    records.add(DisabledRecord.fromNbt(list.getCompoundOrEmpty(i)));
                 }
                 data.disabledNotices.put(uuid, records);
             }
         }
         return data;
     }
+
+    // === 通知逻辑 ===
 
     public static void sendTradeNotice(ServerLevel level, TradingTableBlockEntity table,
                                         Player trader, int amount, double gross, double net) {
@@ -130,7 +147,7 @@ public final class TradeNoticeService extends SavedData {
                     ? "message.trading_table.notice.trade_buy"
                     : "message.trading_table.notice.trade_sell";
             String itemName = table.getTradeItem() != null
-                    ? table.getTradeItem().getDescription().getString()
+                    ? table.getTradeItem().getDescriptionId()
                     : "?";
             String tableName = table.getTableName().isBlank() ? "Trade Table" : table.getTableName();
             ownerPlayer.sendSystemMessage(Component.translatable(key,
@@ -177,7 +194,7 @@ public final class TradeNoticeService extends SavedData {
         if (!Config.getTradeNotice()) {
             return;
         }
-        TradeNoticeService data = get(player.getServer());
+        TradeNoticeService data = get(player.level().getServer());
         UUID uuid = player.getUUID();
         double[] totals;
         List<DisabledRecord> disableds;
@@ -236,7 +253,7 @@ public final class TradeNoticeService extends SavedData {
             return symbol + String.format("%.2f", amount);
         }
         long count = (long) Math.floor(amount);
-        String itemName = Config.getCurrencyItem().getDescription().getString();
+        String itemName = Config.getCurrencyItem().getDescriptionId();
         return count + " " + itemName;
     }
 
@@ -244,9 +261,9 @@ public final class TradeNoticeService extends SavedData {
     private record DisabledRecord(String tableName, String posShort, boolean isStock) {
         static DisabledRecord fromNbt(CompoundTag tag) {
             return new DisabledRecord(
-                    tag.getString(TAG_TABLE_NAME),
-                    tag.getString(TAG_POS),
-                    tag.getBoolean(TAG_IS_STOCK)
+                    tag.getStringOr(TAG_TABLE_NAME, ""),
+                    tag.getStringOr(TAG_POS, ""),
+                    tag.getBooleanOr(TAG_IS_STOCK, false)
             );
         }
     }

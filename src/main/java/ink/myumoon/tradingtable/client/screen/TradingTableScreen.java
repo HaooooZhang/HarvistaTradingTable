@@ -4,28 +4,32 @@ import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
 
 public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu> {
-    private static final ResourceLocation MANAGE_BG_TEXTURE = ResourceLocation.fromNamespaceAndPath("trading_table", "textures/gui/tradingtable_manger.png");
+    private static final Identifier MANAGE_BG_TEXTURE = Identifier.fromNamespaceAndPath("trading_table", "textures/gui/tradingtable_manger.png");
     private static final int BG_TEXTURE_WIDTH = 512;
     private static final int BG_TEXTURE_HEIGHT = 256;
-    private static final int COLOR_TEXT = 0x404040;
+    private static final int COLOR_TEXT = 0xFF404040;
     private static final int PANEL_LEFT_X = 8;
     private static final int PANEL_RIGHT_X = 252;
 
@@ -45,8 +49,8 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
 
     public TradingTableScreen(TradingTableMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
-        this.imageWidth = 336;
-        this.imageHeight = 166;
+        this.width = 336;
+        this.height = 166;
         this.inventoryLabelY = 10000;
     }
 
@@ -89,7 +93,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
 
 
         int rightX = this.leftPos + PANEL_RIGHT_X;
-        this.tableNameBox = new EditBox(this.font, rightX, this.topPos + 26, 76, 18, Component.translatable("ui.trading_table.manage.name"));
+        this.tableNameBox = new EditBox(getFont(), rightX, this.topPos + 26, 76, 18, Component.translatable("ui.trading_table.manage.name"));
         this.tableNameBox.setMaxLength(TradingTableBlockEntity.MAX_TABLE_NAME_LENGTH);
         this.tableNameBox.setCanLoseFocus(true);
         this.savedTableNameBaseline = TradingTableBlockEntity.sanitizeTableName(extractInitialTableName());
@@ -123,14 +127,16 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         if (scrollY != 0) {
             int leftX = this.leftPos + PANEL_LEFT_X;
             int topY = this.topPos + 10;
+            int mods = (this.minecraft != null && this.minecraft.hasControlDown() ? GLFW.GLFW_MOD_CONTROL : 0)
+                     | (this.minecraft != null && this.minecraft.hasShiftDown() ? GLFW.GLFW_MOD_SHIFT : 0);
             if (mouseX >= leftX + 20 && mouseX <= leftX + 56 && mouseY >= topY + 50 && mouseY <= topY + 70) {
-                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, true);
-                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, true);
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, true, mods);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, true, mods);
                 return true;
             }
             if (mouseX >= leftX + 20 && mouseX <= leftX + 56 && mouseY >= topY + 84 && mouseY <= topY + 104) {
-                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, true);
-                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, true);
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, true, mods);
+                else this.handleStepClick(null, mouseX, mouseY, 0, TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, true, mods);
                 return true;
             }
         }
@@ -138,68 +144,67 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.tableNameBox != null && this.tableNameBox.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean flag) {
+        double mx = event.x(), my = event.y();
+        int button = event.button();
+        int mods = event.modifiers();
+        if (this.tableNameBox != null && this.tableNameBox.mouseClicked(event, flag)) {
             this.setFocused(this.tableNameBox);
             return true;
         }
-        if (this.handleStepClick(this.minPlusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, false)) {
+        if (this.handleStepClick(this.minPlusButton, mx, my, button,
+                TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.minMinusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, false)) {
+        if (this.handleStepClick(this.minMinusButton, mx, my, button,
+                TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.pricePlusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, false)) {
+        if (this.handleStepClick(this.pricePlusButton, mx, my, button,
+                TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.priceMinusButton, mouseX, mouseY, button,
-                TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, false)) {
+        if (this.handleStepClick(this.priceMinusButton, mx, my, button,
+                TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, false, mods)) {
             return true;
         }
-        if (this.handleExtractClick(mouseX, mouseY, button)) {
+        if (this.handleExtractClick(mx, my, button, mods)) {
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, flag);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        return super.mouseReleased(mouseX, mouseY, button);
+    public boolean mouseReleased(MouseButtonEvent event) {
+        return super.mouseReleased(event);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        return super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.tableNameBox != null && this.tableNameBox.isFocused() && this.tableNameBox.keyPressed(keyCode, scanCode, modifiers)) {
+    public boolean keyPressed(KeyEvent event) {
+        if (this.tableNameBox != null && this.tableNameBox.isFocused() && this.tableNameBox.keyPressed(event)) {
             return true;
         }
         if (this.tableNameBox != null && this.tableNameBox.isFocused() && this.minecraft != null
-                && this.minecraft.options.keyInventory.matches(keyCode, scanCode)) {
+                && this.minecraft.options.keyInventory.matches(event)) {
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        if (this.tableNameBox != null && this.tableNameBox.isFocused() && this.tableNameBox.charTyped(codePoint, modifiers)) {
+    public boolean charTyped(CharacterEvent event) {
+        if (this.tableNameBox != null && this.tableNameBox.isFocused() && this.tableNameBox.charTyped(event)) {
             return true;
         }
-        return super.charTyped(codePoint, modifiers);
+        return super.charTyped(event);
     }
 
-    @Override
-    protected void containerTick() {
-        super.containerTick();
-        this.updateStateButtons();
-    }
+    // tick() in 26.1.2 is final, moved to extractRenderState
 
     private void sendButton(int id) {
         if (this.minecraft != null && this.minecraft.gameMode != null) {
@@ -224,18 +229,18 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton,
-                                    int oneId, int eightId, int thirtyTwoId, boolean bypassButtonCheck) {
+                                    int oneId, int eightId, int thirtyTwoId, boolean bypassButtonCheck, int modifiers) {
         if (!bypassButtonCheck && (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY))) {
             return false;
         }
 
-        if (Screen.hasControlDown()) {
+        if (this.minecraft != null && this.minecraft.hasControlDown()) {
             this.playStepButtonSound();
             this.sendButton(thirtyTwoId);
             return true;
         }
 
-        if (Screen.hasShiftDown()) {
+        if (this.minecraft != null && this.minecraft.hasShiftDown()) {
             this.playStepButtonSound();
             this.sendButton(eightId);
             return true;
@@ -254,17 +259,17 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
 
-    private boolean handleExtractClick(double mouseX, double mouseY, int mouseButton) {
+    private boolean handleExtractClick(double mouseX, double mouseY, int mouseButton, int modifiers) {
         if (mouseButton != 0 || this.extractButton == null || !this.extractButton.isMouseOver(mouseX, mouseY)) {
             return false;
         }
 
-        if (Screen.hasControlDown()) {
+        if (this.minecraft != null && this.minecraft.hasControlDown()) {
             this.playStepButtonSound();
             this.sendButton(TradingTableMenu.BUTTON_EXTRACT_ALL);
             return true;
         }
-        if (Screen.hasShiftDown()) {
+        if (this.minecraft != null && this.minecraft.hasShiftDown()) {
             this.playStepButtonSound();
             this.sendButton(TradingTableMenu.BUTTON_EXTRACT_STACK);
             return true;
@@ -273,6 +278,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         this.sendButton(TradingTableMenu.BUTTON_EXTRACT);
         return true;
     }
+
 
     private void updateStateButtons() {
         boolean allowManage = this.menu.isAllowManage();
@@ -318,9 +324,9 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     @Override
-    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        //this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        this.updateStateButtons();
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header",
@@ -328,14 +334,14 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
                 Component.translatable("container.trading_table.manage")
         );
 
-        int headerWidth = this.font.width(header);
+        int headerWidth = getFont().width(header);
         if (headerWidth > 160) {
-            long time = net.minecraft.Util.getMillis();
+            long time = System.currentTimeMillis();
             if (this.headerScrollTime == 0) {
                 this.headerScrollTime = time;
             }
             long delta = time - this.headerScrollTime;
-            long pauseDuration = 1800; // 3 seconds pause
+            long pauseDuration = 1800;
 
             int scroll = 0;
             if (delta > pauseDuration) {
@@ -343,63 +349,57 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
             }
 
             int maxScroll = headerWidth - 160;
-            if (scroll > maxScroll + 60) { // 60 frames extra pause at the end
+            if (scroll > maxScroll + 60) {
                 this.headerScrollTime = time;
                 scroll = 0;
             } else if (scroll > maxScroll) {
                 scroll = maxScroll;
             }
-            guiGraphics.enableScissor(this.leftPos + 88, this.topPos + 6, this.leftPos + 88 + 160, this.topPos + 6 + 10);
-            guiGraphics.drawString(this.font, header, this.leftPos + 88 - scroll, this.topPos + 6, COLOR_TEXT, false);
-            guiGraphics.disableScissor();
+            g.enableScissor(this.leftPos + 88, this.topPos + 6, this.leftPos + 88 + 160, this.topPos + 6 + 10);
+            g.text(getFont(), header, this.leftPos + 88 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            g.disableScissor();
         } else {
-            guiGraphics.drawString(this.font, header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
+            g.text(getFont(), header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
         }
 
         int leftX = this.leftPos + PANEL_LEFT_X;
-        guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 16, COLOR_TEXT, false);
-        this.drawAdjustBlock(guiGraphics, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), leftX, this.topPos + 50);
-        this.drawAdjustBlock(guiGraphics, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), leftX, this.topPos + 84);
+        g.text(getFont(), Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 16, COLOR_TEXT, false);
+        this.drawAdjustBlock(g, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), leftX, this.topPos + 50);
+        this.drawAdjustBlock(g, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), leftX, this.topPos + 84);
 
-        guiGraphics.drawString(this.font, this.playerInventoryTitle, this.leftPos + 88, this.topPos + 73, COLOR_TEXT, false);
+        g.text(getFont(), this.playerInventoryTitle, this.leftPos + 88, this.topPos + 73, COLOR_TEXT, false);
 
         int rightX = this.leftPos + PANEL_RIGHT_X;
-        guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.name"), rightX, this.topPos + 16, COLOR_TEXT, false);
-        guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.trade_item"), rightX, this.topPos + 48, COLOR_TEXT, false);
+        g.text(getFont(), Component.translatable("ui.trading_table.manage.name"), rightX, this.topPos + 16, COLOR_TEXT, false);
+        g.text(getFont(), Component.translatable("ui.trading_table.manage.trade_item"), rightX, this.topPos + 48, COLOR_TEXT, false);
 
-        guiGraphics.drawString(this.font, Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
+        g.text(getFont(), Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
         String balance = String.format(Locale.ROOT, "%.1f", this.menu.getCashierBalance());
-        guiGraphics.drawString(this.font, balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
+        g.text(getFont(), balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
         if (Config.isNeoEssentialsMode()) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
-            guiGraphics.drawString(this.font, symbol, rightX + this.font.width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
+            g.text(getFont(), symbol, rightX + getFont().width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
         } else {
             Item currencyItem = Config.getCurrencyItem();
-            guiGraphics.renderItem(new ItemStack(currencyItem), rightX + this.font.width(balance) + 2 + 8, this.topPos + 90);
+            g.item(new ItemStack(currencyItem), rightX + getFont().width(balance) + 2 + 8, this.topPos + 90);
         }
 
         if (this.tableNameBox != null) {
-            this.tableNameBox.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.tableNameBox.extractWidgetRenderState(g, mouseX, mouseY, partialTick);
         }
-
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
-    private void drawAdjustBlock(GuiGraphics guiGraphics, Component label, String value, int x, int y) {
-        guiGraphics.drawString(this.font, label, x, y, COLOR_TEXT, false);
+    private void drawAdjustBlock(GuiGraphicsExtractor g, Component label, String value, int x, int y) {
+        g.text(getFont(), label, x, y, COLOR_TEXT, false);
         Component underlined = Component.literal(value).withStyle(style -> style.withUnderlined(true));
         int centerX = x + 42 - 4;
-        guiGraphics.drawString(this.font, underlined, centerX - this.font.width(underlined) / 2, y + 16, COLOR_TEXT, false);
+        g.text(getFont(), underlined, centerX - getFont().width(underlined) / 2, y + 16, COLOR_TEXT, false);
     }
 
     @Override
-    protected void renderLabels(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        // Labels are fully custom-rendered in render().
-    }
-
-    @Override
-    protected void renderBg(@NotNull GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
     }
 }
+
 

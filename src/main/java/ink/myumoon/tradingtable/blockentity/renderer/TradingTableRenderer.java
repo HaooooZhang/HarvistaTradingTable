@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.blockentity.renderer.renderstate.TradingTableBlockEntityRenderState;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -52,7 +53,7 @@ public class TradingTableRenderer implements BlockEntityRenderer<TradingTableBlo
         state.itemRenderState.clear();
         if (state.tradeItem != null && state.enabled && state.initialized) {
             itemModelResolver.updateForNonLiving(state.itemRenderState,
-                    new ItemStack(state.tradeItem), ItemDisplayContext.FIXED, null);
+                    new ItemStack(state.tradeItem), ItemDisplayContext.FIXED, Minecraft.getInstance().player);
         }
     }
 

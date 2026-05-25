@@ -4,29 +4,32 @@ import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.trade.TaxService;
 import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
 
 public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTableTradeMenu> {
-    private static final ResourceLocation TRADE_BG_TEXTURE = ResourceLocation.fromNamespaceAndPath("trading_table", "textures/gui/tradingtable_trade.png");
+    private static final Identifier TRADE_BG_TEXTURE = Identifier.fromNamespaceAndPath("trading_table", "textures/gui/tradingtable_trade.png");
     private static final int BG_TEXTURE_WIDTH = 256;
     private static final int BG_TEXTURE_HEIGHT = 256;
-    private static final int COLOR_TEXT = 0x404040;
+    private static final int COLOR_TEXT = 0xFF404040;
     private static final int PANEL_PADDING = 8;
     private static final int HEADER_Y = 6;
     private static final int ICON_BOX_X = 20;
@@ -51,8 +54,8 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
 
     public TradingTableTradeScreen(TradingTableTradeMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
-        this.imageWidth = 176;
-        this.imageHeight = 190;
+        this.width = 176;
+        this.height = 190;
         this.inventoryLabelY = 10000;
     }
 
@@ -77,7 +80,7 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 .tooltip(stepTooltip)
                 .build());
 
-        // 动态 Tooltip 不能在 init 时静态创建 —— 保存按钮引用，在 render 时根据当前数值动态显示提示
+        // 动�?Tooltip 不能�?init 时静态创�?—�?保存按钮引用，在 render 时根据当前数值动态显示提�?
         this.executeButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.button.execute"), b -> this.handleTradeClick())
                 .bounds(executeX, executeY, executeWidth, 20)
                 .build());
@@ -88,8 +91,10 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         if (scrollY != 0) {
             int amountCenterX = this.leftPos + AMOUNT_CENTER_X;
             if (mouseX >= amountCenterX - 20 && mouseX <= amountCenterX + 20 && mouseY >= this.topPos + AMOUNT_VALUE_Y && mouseY <= this.topPos + AMOUNT_VALUE_Y + 18) {
-                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, false, true);
-                else this.handleStepClick(null, mouseX, mouseY, 0, true, true);
+                int mods = (this.minecraft != null && this.minecraft.hasControlDown() ? GLFW.GLFW_MOD_CONTROL : 0)
+                         | (this.minecraft != null && this.minecraft.hasShiftDown() ? GLFW.GLFW_MOD_SHIFT : 0);
+                if (scrollY > 0) this.handleStepClick(null, mouseX, mouseY, 0, false, true, mods);
+                else this.handleStepClick(null, mouseX, mouseY, 0, true, true, mods);
                 return true;
             }
         }
@@ -97,14 +102,16 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.handleStepClick(this.amountPlusButton, mouseX, mouseY, button, false, false)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean flag) {
+        double mx = event.x(), my = event.y();
+        int button = event.button();
+        if (this.handleStepClick(this.amountPlusButton, mx, my, button, false, false, event.modifiers())) {
             return true;
         }
-        if (this.handleStepClick(this.amountMinusButton, mouseX, mouseY, button, true, false)) {
+        if (this.handleStepClick(this.amountMinusButton, mx, my, button, true, false, event.modifiers())) {
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, flag);
     }
 
     private void sendButton(int id) {
@@ -122,9 +129,8 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         this.sendButton(TradingTableTradeMenu.BUTTON_EXECUTE);
     }
 
-    @Override
-    protected void containerTick() {
-        super.containerTick();
+    private void doTick() {
+        super.tick();
         if (!this.awaitingTradeResult) {
             return;
         }
@@ -140,7 +146,8 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         this.onClose();
     }
 
-    private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton, boolean isMinus, boolean bypassButtonCheck) {
+    private boolean handleStepClick(Button buttonWidget, double mouseX, double mouseY, int mouseButton,
+                                    boolean isMinus, boolean bypassButtonCheck, int modifiers) {
         if (!bypassButtonCheck && (mouseButton != 0 || buttonWidget == null || !buttonWidget.isMouseOver(mouseX, mouseY))) {
             return false;
         }
@@ -149,13 +156,13 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         int eightId = isMinus ? TradingTableTradeMenu.BUTTON_AMOUNT_MINUS_8 : TradingTableTradeMenu.BUTTON_AMOUNT_PLUS_8;
         int thirtyTwoId = isMinus ? TradingTableTradeMenu.BUTTON_AMOUNT_MINUS_32 : TradingTableTradeMenu.BUTTON_AMOUNT_PLUS_32;
 
-        if (Screen.hasControlDown()) {
+        if (this.minecraft != null && this.minecraft.hasControlDown()) {
             this.playStepButtonSound();
             this.sendButton(thirtyTwoId);
             return true;
         }
 
-        if (Screen.hasShiftDown()) {
+        if (this.minecraft != null && this.minecraft.hasShiftDown()) {
             this.playStepButtonSound();
             this.sendButton(eightId);
             return true;
@@ -165,6 +172,8 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         this.sendButton(oneId);
         return true;
     }
+
+    // mouseScrolled has no modifiers param, use GLFW directly
 
     private void playStepButtonSound() {
         if (this.minecraft == null) {
@@ -178,26 +187,26 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             return;
         }
         if (success) {
-            this.minecraft.player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.7F, 1.0F);
+            this.minecraft.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.7F, 1.0F);
         } else {
-            this.minecraft.player.playNotifySound(SoundEvents.DISPENSER_FAIL, SoundSource.PLAYERS, 0.9F, 1.0F);
+            this.minecraft.player.playSound(SoundEvents.DISPENSER_FAIL, 0.9F, 1.0F);
         }
     }
 
     @Override
-    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        //this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+        doTick();
 
         Component header = Component.translatable("ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.trade"));
-        int headerWidth = this.font.width(header);
+        int headerWidth = getFont().width(header);
         if (headerWidth > 160) {
-            long time = net.minecraft.Util.getMillis();
+            long time = System.currentTimeMillis();
             if (this.headerScrollTime == 0) {
                 this.headerScrollTime = time;
             }
             long delta = time - this.headerScrollTime;
-            long pauseDuration = 1800L; // 3 seconds pause
+            long pauseDuration = 1800L;
 
             int scroll = 0;
             if (delta > pauseDuration) {
@@ -205,17 +214,17 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             }
 
             int maxScroll = headerWidth - 160;
-            if (scroll > maxScroll + 60) { // 60 frames extra pause at the end
+            if (scroll > maxScroll + 60) {
                 this.headerScrollTime = time;
                 scroll = 0;
             } else if (scroll > maxScroll) {
                 scroll = maxScroll;
             }
             guiGraphics.enableScissor(this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, this.leftPos + PANEL_PADDING + 160, this.topPos + HEADER_Y + 10);
-            guiGraphics.drawString(this.font, header, this.leftPos + PANEL_PADDING - scroll, this.topPos + HEADER_Y, COLOR_TEXT, false);
+            guiGraphics.text(getFont(), header, this.leftPos + PANEL_PADDING - scroll, this.topPos + HEADER_Y, COLOR_TEXT, false);
             guiGraphics.disableScissor();
         } else {
-            guiGraphics.drawString(this.font, header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
+            guiGraphics.text(getFont(), header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
         }
 
         this.renderTradeItem(guiGraphics);
@@ -224,16 +233,15 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
         int amountCenterX = this.leftPos + AMOUNT_CENTER_X;
         Component amountText = Component.literal(Integer.toString(this.menu.getRequestedAmount()))
                 .withStyle(style -> style.withUnderlined(true));
-        int amountX = amountCenterX - this.font.width(amountText) / 2;
-        guiGraphics.drawString(this.font, amountText, amountX, this.topPos + AMOUNT_VALUE_Y, COLOR_TEXT, false);
-        guiGraphics.drawString(this.font, this.playerInventoryTitle, this.leftPos + PANEL_PADDING, this.topPos + PLAYER_INV_LABEL_Y, COLOR_TEXT, false);
+        int amountX = amountCenterX - getFont().width(amountText) / 2;
+        guiGraphics.text(getFont(), amountText, amountX, this.topPos + AMOUNT_VALUE_Y, COLOR_TEXT, false);
+        guiGraphics.text(getFont(), this.playerInventoryTitle, this.leftPos + PANEL_PADDING, this.topPos + PLAYER_INV_LABEL_Y, COLOR_TEXT, false);
 
         Item tradeItem = this.menu.getTradeItem();
         if (tradeItem != null && this.isMouseOverTradeItemIcon(mouseX, mouseY)) {
-            guiGraphics.renderTooltip(this.font, new ItemStack(tradeItem), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(getFont(), new ItemStack(tradeItem), mouseX, mouseY);
         }
 
-        // 动态税收提示：按钮 Tooltip 不能在 init() 时静态创建，因为数量/价格会变。
         double taxAmount = TaxService.calculateTax(this.menu.getUnitPrice() * (double) this.menu.getRequestedAmount());
         if (this.executeButton != null && this.executeButton.isMouseOver(mouseX, mouseY) && taxAmount > 0.0D && this.menu.isBuyOrder()) {
             String displayTax;
@@ -246,20 +254,18 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                     ? NeoEssentialsEconomyBackend.getCurrencySymbol()
                     : I18n.get(Config.getCurrencyItem().getDescriptionId());
             Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, currencyName);
-            java.util.List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(taxComp, 180);
-            guiGraphics.renderTooltip(this.font, lines, mouseX, mouseY);
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines = getFont().split(taxComp, 180);
+            guiGraphics.setTooltipForNextFrame(getFont(), lines, mouseX, mouseY);
         }
-
-        this.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
-    private void renderTradeItem(GuiGraphics guiGraphics) {
+    private void renderTradeItem(GuiGraphicsExtractor g) {
         int boxLeft = this.leftPos + ICON_BOX_X;
         int boxTop = this.topPos + ICON_BOX_Y;
 
         Item tradeItem = this.menu.getTradeItem();
         if (tradeItem == null) {
-            guiGraphics.drawCenteredString(this.font,
+            g.centeredText(getFont(),
                     Component.literal("-"),
                     boxLeft + ICON_BOX_SIZE / 2,
                     boxTop + 14,
@@ -267,11 +273,11 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             return;
         }
 
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(boxLeft + ICON_RENDER_OFFSET, boxTop + ICON_RENDER_OFFSET, 0.0F);
-        guiGraphics.pose().scale(1.5F, 1.5F, 1.0F);
-        guiGraphics.renderItem(new ItemStack(tradeItem), 0, 0);
-        guiGraphics.pose().popPose();
+        g.pose().pushMatrix();
+        g.pose().translate(boxLeft + ICON_RENDER_OFFSET, boxTop + ICON_RENDER_OFFSET);
+        g.pose().scale(1.5F, 1.5F);
+        g.item(new ItemStack(tradeItem), 0, 0);
+        g.pose().popMatrix();
     }
 
     private boolean isMouseOverTradeItemIcon(double mouseX, double mouseY) {
@@ -283,73 +289,63 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
                 && mouseY < iconY + ICON_RENDER_SIZE;
     }
 
-    private void renderTradeInfo(GuiGraphics guiGraphics) {
+    private void renderTradeInfo(GuiGraphicsExtractor g) {
         Component tradeType = Component.translatable(this.menu.isBuyOrder()
                 ? "ui.trading_table.trade.type.buy"
                 : "ui.trading_table.trade.type.sell");
 
-        guiGraphics.drawString(this.font,
+        g.text(getFont(),
                 Component.translatable("ui.trading_table.trade.line.type", tradeType),
                 this.leftPos + INFO_X,
                 this.topPos + INFO_START_Y,
-                COLOR_TEXT,
-                false);
+                COLOR_TEXT, false);
 
         int priceY = this.topPos + INFO_START_Y + INFO_ROW_STEP;
         Component priceText = Component.translatable("ui.trading_table.trade.line.price", this.menu.getUnitPrice());
-        guiGraphics.drawString(this.font,
+        g.text(getFont(),
                 priceText,
                 this.leftPos + INFO_X,
                 priceY,
-                COLOR_TEXT,
-                false);
-        int currencyIconX = this.leftPos + INFO_X + this.font.width(priceText) + 3;
+                COLOR_TEXT, false);
+        int currencyIconX = this.leftPos + INFO_X + getFont().width(priceText) + 3;
         if (Config.isNeoEssentialsMode()) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
-            guiGraphics.drawString(this.font, symbol, currencyIconX, priceY, COLOR_TEXT, false);
-            guiGraphics.drawString(this.font,
+            g.text(getFont(), symbol, currencyIconX, priceY, COLOR_TEXT, false);
+            g.text(getFont(),
                     Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
-                    currencyIconX + this.font.width(NeoEssentialsEconomyBackend.getCurrencySymbol()) + 4,
+                    currencyIconX + getFont().width(NeoEssentialsEconomyBackend.getCurrencySymbol()) + 4,
                     priceY,
-                    COLOR_TEXT,
-                    false);
+                    COLOR_TEXT, false);
         } else {
-            guiGraphics.renderItem(new ItemStack(Config.getCurrencyItem()), currencyIconX, priceY - 4);
-            guiGraphics.drawString(this.font,
+            g.item(new ItemStack(Config.getCurrencyItem()), currencyIconX, priceY - 4);
+            g.text(getFont(),
                     Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
                     currencyIconX + 18,
                     priceY,
-                    COLOR_TEXT,
-                    false);
+                    COLOR_TEXT, false);
         }
 
         if (this.menu.isBuyOrder()) {
             double balance = this.menu.getCurrencyBalance();
-            guiGraphics.drawString(this.font,
+            g.text(getFont(),
                     Component.translatable("ui.trading_table.trade.line.balance", String.format(Locale.ROOT, "%.1f", balance)),
                     this.leftPos + INFO_X,
                     this.topPos + INFO_START_Y + INFO_ROW_STEP * 2,
-                    COLOR_TEXT,
-                    false);
+                    COLOR_TEXT, false);
             return;
         }
 
-        guiGraphics.drawString(this.font,
+        g.text(getFont(),
                 Component.translatable("ui.trading_table.trade.line.stock", this.menu.getStockCount()),
                 this.leftPos + INFO_X,
                 this.topPos + INFO_START_Y + INFO_ROW_STEP * 2,
-                COLOR_TEXT,
-                false);
+                COLOR_TEXT, false);
     }
 
     @Override
-    protected void renderLabels(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        // All text is drawn in render() with custom layout.
-    }
-
-    @Override
-    protected void renderBg(@NotNull GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-        guiGraphics.blit(TRADE_BG_TEXTURE, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        g.blit(RenderPipelines.GUI_TEXTURED, TRADE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
     }
 }
+
 
