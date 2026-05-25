@@ -99,7 +99,7 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         this.tableNameBox.setValue(this.savedTableNameBaseline);
         this.tableNameBox.setEditable(this.menu.isAllowManage());
         this.tableNameBox.setFocused(false);
-        this.addWidget(this.tableNameBox);
+        this.addRenderableWidget(this.tableNameBox);
 
         this.confirmTradeItemButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.trade_item.confirm"), b -> sendButton(TradingTableMenu.BUTTON_CONFIRM_TRADE_ITEM))
                 .bounds(rightX + 34, this.topPos + 58, 36, 20)
@@ -324,8 +324,21 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        super.extractRenderState(g, mouseX, mouseY, partialTick);
         this.updateStateButtons();
+        super.extractRenderState(g, mouseX, mouseY, partialTick);
+    }
+
+    private void drawAdjustBlock(GuiGraphicsExtractor g, Component label, String value, int x, int y) {
+        g.text(getFont(), label, x, y, COLOR_TEXT, false);
+        Component underlined = Component.literal(value).withStyle(style -> style.withUnderlined(true));
+        int centerX = x + 42 - 4;
+        g.text(getFont(), underlined, centerX - getFont().width(underlined) / 2, y + 16, COLOR_TEXT, false);
+    }
+
+    @Override
+    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(g, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header",
@@ -382,23 +395,6 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
             Item currencyItem = Config.getCurrencyItem();
             g.item(new ItemStack(currencyItem), rightX + getFont().width(balance) + 2 + 8, this.topPos + 90);
         }
-
-        if (this.tableNameBox != null) {
-            this.tableNameBox.extractWidgetRenderState(g, mouseX, mouseY, partialTick);
-        }
-    }
-
-    private void drawAdjustBlock(GuiGraphicsExtractor g, Component label, String value, int x, int y) {
-        g.text(getFont(), label, x, y, COLOR_TEXT, false);
-        Component underlined = Component.literal(value).withStyle(style -> style.withUnderlined(true));
-        int centerX = x + 42 - 4;
-        g.text(getFont(), underlined, centerX - getFont().width(underlined) / 2, y + 16, COLOR_TEXT, false);
-    }
-
-    @Override
-    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
-        super.extractContents(g, mouseX, mouseY, partialTick);
     }
 }
 

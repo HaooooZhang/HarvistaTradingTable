@@ -194,47 +194,8 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         doTick();
-
-        Component header = Component.translatable("ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.trade"));
-        int headerWidth = getFont().width(header);
-        if (headerWidth > 160) {
-            long time = System.currentTimeMillis();
-            if (this.headerScrollTime == 0) {
-                this.headerScrollTime = time;
-            }
-            long delta = time - this.headerScrollTime;
-            long pauseDuration = 1800L;
-
-            int scroll = 0;
-            if (delta > pauseDuration) {
-                scroll = (int) ((delta - pauseDuration) / 30L);
-            }
-
-            int maxScroll = headerWidth - 160;
-            if (scroll > maxScroll + 60) {
-                this.headerScrollTime = time;
-                scroll = 0;
-            } else if (scroll > maxScroll) {
-                scroll = maxScroll;
-            }
-            guiGraphics.enableScissor(this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, this.leftPos + PANEL_PADDING + 160, this.topPos + HEADER_Y + 10);
-            guiGraphics.text(getFont(), header, this.leftPos + PANEL_PADDING - scroll, this.topPos + HEADER_Y, COLOR_TEXT, false);
-            guiGraphics.disableScissor();
-        } else {
-            guiGraphics.text(getFont(), header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
-        }
-
-        this.renderTradeItem(guiGraphics);
-        this.renderTradeInfo(guiGraphics);
-
-        int amountCenterX = this.leftPos + AMOUNT_CENTER_X;
-        Component amountText = Component.literal(Integer.toString(this.menu.getRequestedAmount()))
-                .withStyle(style -> style.withUnderlined(true));
-        int amountX = amountCenterX - getFont().width(amountText) / 2;
-        guiGraphics.text(getFont(), amountText, amountX, this.topPos + AMOUNT_VALUE_Y, COLOR_TEXT, false);
-        guiGraphics.text(getFont(), this.playerInventoryTitle, this.leftPos + PANEL_PADDING, this.topPos + PLAYER_INV_LABEL_Y, COLOR_TEXT, false);
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
         Item tradeItem = this.menu.getTradeItem();
         if (tradeItem != null && this.isMouseOverTradeItemIcon(mouseX, mouseY)) {
@@ -345,6 +306,45 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
     public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         g.blit(RenderPipelines.GUI_TEXTURED, TRADE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
         super.extractContents(g, mouseX, mouseY, partialTick);
+
+        Component header = Component.translatable("ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.trade"));
+        int headerWidth = getFont().width(header);
+        if (headerWidth > 160) {
+            long time = System.currentTimeMillis();
+            if (this.headerScrollTime == 0) {
+                this.headerScrollTime = time;
+            }
+            long delta = time - this.headerScrollTime;
+            long pauseDuration = 1800L;
+
+            int scroll = 0;
+            if (delta > pauseDuration) {
+                scroll = (int) ((delta - pauseDuration) / 30L);
+            }
+
+            int maxScroll = headerWidth - 160;
+            if (scroll > maxScroll + 60) {
+                this.headerScrollTime = time;
+                scroll = 0;
+            } else if (scroll > maxScroll) {
+                scroll = maxScroll;
+            }
+            g.enableScissor(this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, this.leftPos + PANEL_PADDING + 160, this.topPos + HEADER_Y + 10);
+            g.text(getFont(), header, this.leftPos + PANEL_PADDING - scroll, this.topPos + HEADER_Y, COLOR_TEXT, false);
+            g.disableScissor();
+        } else {
+            g.text(getFont(), header, this.leftPos + PANEL_PADDING, this.topPos + HEADER_Y, COLOR_TEXT, false);
+        }
+
+        this.renderTradeItem(g);
+        this.renderTradeInfo(g);
+
+        int amountCenterX = this.leftPos + AMOUNT_CENTER_X;
+        Component amountText = Component.literal(Integer.toString(this.menu.getRequestedAmount()))
+                .withStyle(style -> style.withUnderlined(true));
+        int amountX = amountCenterX - getFont().width(amountText) / 2;
+        g.text(getFont(), amountText, amountX, this.topPos + AMOUNT_VALUE_Y, COLOR_TEXT, false);
+        g.text(getFont(), this.playerInventoryTitle, this.leftPos + PANEL_PADDING, this.topPos + PLAYER_INV_LABEL_Y, COLOR_TEXT, false);
     }
 }
 

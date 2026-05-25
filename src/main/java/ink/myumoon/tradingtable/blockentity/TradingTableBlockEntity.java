@@ -79,6 +79,8 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     private int syncBatchDepth;
     private boolean convertingCurrencyDeposit;
     private boolean currencyMigrated;
+    private long lastConversionTick = Long.MIN_VALUE;
+    private long convertedSlotsMask;
 
     private final ResourceHandler<ItemResource> backInputHandler = new InventoryAutomationView(true, false);
     private final ResourceHandler<ItemResource> downOutputHandler = new InventoryAutomationView(false, true);
@@ -389,58 +391,88 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             return;
         }
+
+        // 新 tick 时重置槽位追踪
+        long currentTick = this.level != null ? this.level.getGameTime() : Long.MIN_VALUE;
+        if (currentTick != this.lastConversionTick) {
+            this.lastConversionTick = currentTick;
+            this.convertedSlotsMask = 0L;
+        }
+
         if (ConversionService.isEnabled()) {
+            int size = this.inventory.size();
+            // Phase 1：只统计尚未转换的槽位
             long totalValue = 0L;
+            for (int i = 0; i < size; i++) {
+                if ((this.convertedSlotsMask & (1L << i)) != 0) {
+                    continue;
+                }
+                ItemStack stack = this.inventory.copyToList().get(i);
+                if (stack.isEmpty()) {
+                    continue;
+                }
+                long value = ConversionService.getValue(stack.getItem());
+                if (value <= 0L) {
+                    continue;
+                }
+                totalValue += value * stack.getCount();
+            }
+
             this.convertingCurrencyDeposit = true;
             try {
-                for (int i = 0; i < this.inventory.size(); i++) {
+                // Phase 2：清除所有货币物品（包括已被重新插入的）
+                for (int i = 0; i < size; i++) {
                     ItemStack stack = this.inventory.copyToList().get(i);
                     if (stack.isEmpty()) {
                         continue;
                     }
-                    long value = ConversionService.getValue(stack.getItem());
-                    if (value <= 0L) {
+                    if (ConversionService.getValue(stack.getItem()) <= 0L) {
                         continue;
                     }
-                    totalValue += value * stack.getCount();
                     this.inventory.set(i, ItemResource.EMPTY, 0);
+                    this.convertedSlotsMask |= (1L << i);
+                }
+                if (totalValue > 0L) {
+                    this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalValue);
                 }
             } finally {
                 this.convertingCurrencyDeposit = false;
-            }
-
-            if (totalValue > 0L) {
-                this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalValue);
             }
             return;
         }
 
         Item currencyItem = Config.getCurrencyItem();
+        int size = this.inventory.size();
+
+        // Phase 1：只统计尚未转换的槽位
         int totalCurrencyItems = 0;
-        for (int i = 0; i < this.inventory.size(); i++) {
+        for (int i = 0; i < size; i++) {
+            if ((this.convertedSlotsMask & (1L << i)) != 0) {
+                continue;
+            }
             ItemStack stack = this.inventory.copyToList().get(i);
             if (stack.is(currencyItem)) {
                 totalCurrencyItems += stack.getCount();
             }
         }
-        if (totalCurrencyItems <= 0) {
-            return;
-        }
 
         this.convertingCurrencyDeposit = true;
         try {
-            for (int i = 0; i < this.inventory.size(); i++) {
+            // Phase 2：清除所有货币物品（包括已被重新插入的）
+            for (int i = 0; i < size; i++) {
                 ItemStack stack = this.inventory.copyToList().get(i);
                 if (!stack.is(currencyItem)) {
                     continue;
                 }
                 this.inventory.set(i, ItemResource.EMPTY, 0);
+                this.convertedSlotsMask |= (1L << i);
+            }
+            if (totalCurrencyItems > 0) {
+                this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalCurrencyItems);
             }
         } finally {
             this.convertingCurrencyDeposit = false;
         }
-
-        this.currencyBalance = Math.min(Double.MAX_VALUE, this.currencyBalance + totalCurrencyItems);
     }
 
     // 迁移，其实还没有实现

@@ -68,7 +68,7 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
         this.tableNameBox.setCanLoseFocus(true);
         this.tableNameBox.setValue(this.menu.getTableName());
         this.tableNameBox.setFocused(false);
-        this.addWidget(this.tableNameBox);
+        this.addRenderableWidget(this.tableNameBox);
 
         this.typeSellButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.type.sell"), b -> this.handleTypeClick(false))
                 .bounds(leftX, this.topPos + TYPE_BUTTON_Y, TYPE_BUTTON_WIDTH, TYPE_BUTTON_HEIGHT)
@@ -284,9 +284,21 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
 
     @Override
     public void extractRenderState(@NotNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        //this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         doTick();
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void drawAdjustRow(GuiGraphicsExtractor guiGraphics, Component label, int value, int x, int y) {
+        guiGraphics.text(getFont(), label, x, y, COLOR_TEXT, false);
+        Component underlined = Component.literal(Integer.toString(value)).withStyle(style -> style.withUnderlined(true));
+        int valueX = x + 40 - getFont().width(underlined) / 2;
+        guiGraphics.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 4, COLOR_TEXT, false);
+    }
+
+    @Override
+    public void extractContents(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.init")
@@ -328,23 +340,5 @@ public class TradingTableInitScreen extends AbstractContainerScreen<TradingTable
 
         this.drawAdjustRow(guiGraphics, Component.translatable("ui.trading_table.init.price"), this.menu.getUnitPrice(), rightX, this.topPos + 16);
         this.drawAdjustRow(guiGraphics, Component.translatable("ui.trading_table.init.min"), this.menu.getMinTradeAmount(), rightX, this.topPos + 48);
-
-
-        if (this.tableNameBox != null) {
-            this.tableNameBox.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
-        }
-    }
-
-    private void drawAdjustRow(GuiGraphicsExtractor guiGraphics, Component label, int value, int x, int y) {
-        guiGraphics.text(getFont(), label, x, y, COLOR_TEXT, false);
-        Component underlined = Component.literal(Integer.toString(value)).withStyle(style -> style.withUnderlined(true));
-        int valueX = x + 40 - getFont().width(underlined) / 2;
-        guiGraphics.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 4, COLOR_TEXT, false);
-    }
-
-    @Override
-    public void extractContents(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
-        super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
     }
 }
