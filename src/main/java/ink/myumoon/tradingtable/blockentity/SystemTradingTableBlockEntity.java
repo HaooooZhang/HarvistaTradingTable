@@ -185,9 +185,6 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
         if (this.unitPrice <= 0) {
             this.unitPrice = 1L;
         }
-        if (this.tableName.isBlank()) {
-            this.tableName = Component.translatable(TTBlocks.SYSTEM_TRADING_TABLE.get().getDescriptionId()).getString();
-        }
         this.setChanged();
         return true;
     }
