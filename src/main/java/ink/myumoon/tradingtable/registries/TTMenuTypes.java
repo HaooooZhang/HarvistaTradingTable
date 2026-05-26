@@ -1,9 +1,7 @@
 package ink.myumoon.tradingtable.registries;
 
 import ink.myumoon.tradingtable.HarvistasTradingTable;
-import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
-import ink.myumoon.tradingtable.menu.TradingTableMenu;
-import ink.myumoon.tradingtable.menu.TradingTableTradeMenu;
+import ink.myumoon.tradingtable.menu.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
@@ -26,12 +24,12 @@ public final class TTMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<TradingTableMenu>> TRADING_TABLE_MANAGE =
             MENU_TYPES.register("trading_table_manage", () -> new MenuType<>(TradingTableMenu::new, FeatureFlags.DEFAULT_FLAGS));
 
-//    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableInitMenu>> SYSTEM_TRADING_TABLE_INIT =
-//            MENU_TYPES.register("system_trading_table_init", () -> new MenuType<>(SystemTradingTableInitMenu::new, FeatureFlags.DEFAULT_FLAGS));
-//
-//    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableTradeMenu>> SYSTEM_TRADING_TABLE_TRADE =
-//            MENU_TYPES.register("system_trading_table_trade", () -> new MenuType<>(SystemTradingTableTradeMenu::new, FeatureFlags.DEFAULT_FLAGS));
-//
-//    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableMenu>> SYSTEM_TRADING_TABLE_MANAGE =
-//            MENU_TYPES.register("system_trading_table_manage", () -> new MenuType<>(SystemTradingTableMenu::new, FeatureFlags.DEFAULT_FLAGS));
+    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableInitMenu>> SYSTEM_TRADING_TABLE_INIT =
+            MENU_TYPES.register("system_trading_table_init", () -> new MenuType<>(SystemTradingTableInitMenu::new, FeatureFlags.DEFAULT_FLAGS));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableTradeMenu>> SYSTEM_TRADING_TABLE_TRADE =
+            MENU_TYPES.register("system_trading_table_trade", () -> new MenuType<>(SystemTradingTableTradeMenu::new, FeatureFlags.DEFAULT_FLAGS));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<SystemTradingTableMenu>> SYSTEM_TRADING_TABLE_MANAGE =
+            MENU_TYPES.register("system_trading_table_manage", () -> new MenuType<>(SystemTradingTableMenu::new, FeatureFlags.DEFAULT_FLAGS));
 }

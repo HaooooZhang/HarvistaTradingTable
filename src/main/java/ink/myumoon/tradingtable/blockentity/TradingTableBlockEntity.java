@@ -654,8 +654,8 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         this.tableName = sanitizeTableName(input.getStringOr(TAG_TABLE_NAME, ""));
         this.buyOrder = input.getBooleanOr(TAG_IS_BUY_ORDER, false);
         this.minTradeAmount = Math.max(1, input.getIntOr(TAG_MIN_TRADE_AMOUNT, 1));
-        this.unitPrice = Math.max(1L, input.getLongOr(TAG_UNIT_PRICE, 1L));
-        this.currencyBalance = Math.max(0.0D, input.getDoubleOr(TAG_CURRENCY_BALANCE, 0.0D));
+        this.unitPrice = input.getLongOr(TAG_UNIT_PRICE, 1L);
+        this.currencyBalance = input.getDoubleOr(TAG_CURRENCY_BALANCE, 0.0D);
         this.currencyMigrated = input.getBooleanOr(TAG_CURRENCY_MIGRATED, false);
 
         String tradeItemStr = input.getStringOr(TAG_TRADE_ITEM, "");

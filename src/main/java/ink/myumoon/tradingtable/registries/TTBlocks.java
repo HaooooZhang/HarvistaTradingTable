@@ -2,6 +2,7 @@ package ink.myumoon.tradingtable.registries;
 
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
+import ink.myumoon.tradingtable.block.BlockSystemTradingTable;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -20,6 +21,18 @@ public final class TTBlocks {
                     .explosionResistance(1200f)
                     .lightLevel(state -> state.getValue(BlockTradingTable.INITIALIZED) ? 7 : 0)
                     .sound(SoundType.COPPER)
+                    .requiresCorrectToolForDrops()
+    );
+
+    public static final DeferredBlock<BlockSystemTradingTable> SYSTEM_TRADING_TABLE = BLOCKS.registerBlock(
+            "system_trading_table",
+            BlockSystemTradingTable::new,
+            () -> BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.IRON_BLOCK)
+                    .strength(5F)
+                    .explosionResistance(1200f)
+                    .lightLevel(state -> state.getValue(BlockSystemTradingTable.INITIALIZED) ? 7 : 0)
+                    .sound(SoundType.METAL)
                     .requiresCorrectToolForDrops()
     );
 }
