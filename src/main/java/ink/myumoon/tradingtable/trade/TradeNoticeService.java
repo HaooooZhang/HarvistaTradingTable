@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
@@ -142,7 +143,7 @@ public final class TradeNoticeService extends SavedData {
                     ? "message.trading_table.notice.trade_buy"
                     : "message.trading_table.notice.trade_sell";
             Component itemName = table.getTradeItem() != null
-                    ? Component.translatable(table.getTradeItem().getDescriptionId())
+                    ? new ItemStack(table.getTradeItem()).getHoverName()
                     : Component.literal("?");
             Component tableNameComp = table.getTableName().isBlank()
                     ? Component.translatable("block.trading_table.trading_table")
