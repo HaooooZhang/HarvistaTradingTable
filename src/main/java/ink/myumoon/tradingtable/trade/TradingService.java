@@ -4,8 +4,11 @@ import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -87,6 +90,7 @@ public final class TradingService {
             if (player.level() instanceof ServerLevel serverLevel) {
                 TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
             }
+            grantTradeAdvancement(player);
             return TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -116,6 +120,7 @@ public final class TradingService {
         if (player.level() instanceof ServerLevel serverLevel) {
             TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
         }
+        grantTradeAdvancement(player);
         return TradeResult.success("message.trading_table.trade_success");
     }
 
@@ -160,6 +165,7 @@ public final class TradingService {
             if (player.level() instanceof ServerLevel serverLevel) {
                 TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
             }
+            grantTradeAdvancement(player);
             return TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -189,6 +195,7 @@ public final class TradingService {
         if (player.level() instanceof ServerLevel serverLevel) {
             TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
         }
+        grantTradeAdvancement(player);
         return TradeResult.success("message.trading_table.trade_success");
     }
 
@@ -370,6 +377,16 @@ public final class TradingService {
             int toGive = (int) Math.min(remaining, maxStack);
             giveToPlayer(player, new ItemStack(currencyItem, toGive));
             remaining -= toGive;
+        }
+    }
+
+    static void grantTradeAdvancement(Player player) {
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.level() instanceof ServerLevel serverLevel) {
+            AdvancementHolder advancement = serverLevel.getServer().getAdvancements()
+                    .get(Identifier.fromNamespaceAndPath("trading_table", "trade"));
+            if (advancement != null) {
+                serverPlayer.getAdvancements().award(advancement, "trade");
+            }
         }
     }
 

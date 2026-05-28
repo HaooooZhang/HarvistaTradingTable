@@ -1,4 +1,7 @@
 {
+  "advancements.trading_table.trade.title": "Free Trader",
+  "advancements.trading_table.trade.description": "Complete a trade using a Trading Table or System Trading Table",
+
   "itemGroup.trading_table": "Harvista's Trading Table",
 
   "block.trading_table.trading_table": "Trading Table",

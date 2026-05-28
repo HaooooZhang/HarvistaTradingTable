@@ -1,0 +1,24 @@
+{
+  "parent": "minecraft:adventure/trade",
+  "criteria": {
+    "trade": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.trading_table.trade.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "trading_table:trading_table"
+    },
+    "title": {
+      "translate": "advancements.trading_table.trade.title"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  }
+}

@@ -58,6 +58,7 @@ public final class SystemTradingService {
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+            TradingService.grantTradeAdvancement(player);
             return TradingService.TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -78,6 +79,7 @@ public final class SystemTradingService {
         }
 
         TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+        TradingService.grantTradeAdvancement(player);
         return TradingService.TradeResult.success("message.trading_table.trade_success");
     }
 
@@ -104,6 +106,7 @@ public final class SystemTradingService {
                 return TradingService.TradeResult.fail("message.trading_table.player_item_too_low", false);
             }
             NeoEssentialsEconomyBackend.addBalance(player.getUUID(), net);
+            TradingService.grantTradeAdvancement(player);
             return TradingService.TradeResult.success("message.trading_table.trade_success");
         }
 
@@ -113,6 +116,7 @@ public final class SystemTradingService {
         }
 
         TradingService.giveCurrencyToPlayer(player, Config.getCurrencyItem(), net);
+        TradingService.grantTradeAdvancement(player);
         return TradingService.TradeResult.success("message.trading_table.trade_success");
     }
 }

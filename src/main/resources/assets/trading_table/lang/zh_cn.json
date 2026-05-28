@@ -1,4 +1,7 @@
 {
+  "advancements.trading_table.trade.title": "自由贸易",
+  "advancements.trading_table.trade.description": "使用贸易台或系统贸易台完成一次交易",
+
   "itemGroup.trading_table": "拾穗的贸易台",
 
   "block.trading_table.trading_table": "贸易台",
