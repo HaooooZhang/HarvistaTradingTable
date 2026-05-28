@@ -111,7 +111,6 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
         this.allowManage = allowManage;
         this.addDataSlots(this.viewData);
 
-        // Trade item config slot (right panel, same position as normal table alias slot).
         this.addSlot(new ResourceHandlerSlot(inventory, inventory::set, 0, TRADE_ITEM_X, TRADE_ITEM_Y) {
             @Override
             public boolean mayPlace(ItemStack stack) {
@@ -124,7 +123,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
             }
         });
 
-        // Player inventory (3x9).
+        // Player inventory (3x9)
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 int index = col + row * 9 + 9;
@@ -132,7 +131,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
             }
         }
 
-        // Hotbar.
+        // Hotbar
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col, HOTBAR_X + col * 18, HOTBAR_Y));
         }

@@ -298,7 +298,6 @@ public final class TradingService {
         return true;
     }
 
-    // 26.1.2: extract(int, ItemResource, int, TransactionContext) 替代 extractItem(slot, amount, simulate)
     public static boolean removeFromHandler(ItemStacksResourceHandler handler, Item item, int amount) {
         int remaining = amount;
         for (int i = 0; i < handler.size() && remaining > 0; i++) {
@@ -317,8 +316,6 @@ public final class TradingService {
         return remaining == 0;
     }
 
-    // 26.1.2: insert(int, ItemResource, int, TransactionContext) 替代 insertItem(slot, stack, simulate)
-    //         simulate=true → 不 commit，close() 时自动回滚
     public static ItemStack insertIntoHandler(ItemStacksResourceHandler handler, ItemStack toInsert, boolean simulate) {
         ItemStack remainder = toInsert.copy();
         for (int i = 0; i < handler.size() && !remainder.isEmpty(); i++) {

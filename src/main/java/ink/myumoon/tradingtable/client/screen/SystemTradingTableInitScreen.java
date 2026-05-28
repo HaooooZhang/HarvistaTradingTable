@@ -177,7 +177,6 @@ public class SystemTradingTableInitScreen extends AbstractContainerScreen<System
         return super.charTyped(event);
     }
 
-    // tick() in 26.1.2 is final, moved to extractRenderState
     private void doTick() {
         if (this.menu.isInitialized()) {
             this.onClose();
@@ -282,22 +281,22 @@ public class SystemTradingTableInitScreen extends AbstractContainerScreen<System
     }
 
     @Override
-    public void extractRenderState(@NotNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(@NotNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         doTick();
-        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
-    private void drawAdjustRow(GuiGraphicsExtractor guiGraphics, Component label, int value, int x, int y) {
-        guiGraphics.text(getFont(), label, x, y, COLOR_TEXT, false);
+    private void drawAdjustRow(GuiGraphicsExtractor graphics, Component label, int value, int x, int y) {
+        graphics.text(getFont(), label, x, y, COLOR_TEXT, false);
         Component underlined = Component.literal(Integer.toString(value)).withStyle(style -> style.withUnderlined(true));
         int valueX = x + 40 - getFont().width(underlined) / 2;
-        guiGraphics.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 4, COLOR_TEXT, false);
+        graphics.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 4, COLOR_TEXT, false);
     }
 
     @Override
-    public void extractContents(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
-        super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.init")
@@ -324,20 +323,20 @@ public class SystemTradingTableInitScreen extends AbstractContainerScreen<System
             } else if (scroll > maxScroll) {
                 scroll = maxScroll;
             }
-            guiGraphics.enableScissor(this.leftPos + 8, this.topPos + 6, this.leftPos + 8 + 160, this.topPos + 6 + 10);
-            guiGraphics.text(getFont(), header, this.leftPos + 8 - scroll, this.topPos + 6, COLOR_TEXT, false);
-            guiGraphics.disableScissor();
+            graphics.enableScissor(this.leftPos + 8, this.topPos + 6, this.leftPos + 8 + 160, this.topPos + 6 + 10);
+            graphics.text(getFont(), header, this.leftPos + 8 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            graphics.disableScissor();
         } else {
-            guiGraphics.text(getFont(), header, this.leftPos + 8, this.topPos + 6, COLOR_TEXT, false);
+            graphics.text(getFont(), header, this.leftPos + 8, this.topPos + 6, COLOR_TEXT, false);
         }
 
         int leftX = this.leftPos + LEFT_PANEL_X;
         int rightX = this.leftPos + RIGHT_PANEL_X;
 
-        guiGraphics.text(getFont(), Component.translatable("ui.trading_table.init.name"), leftX, this.topPos + 16, COLOR_TEXT, false);
-        guiGraphics.text(getFont(), Component.translatable("ui.trading_table.init.trade_item"), leftX, this.topPos + 48, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.init.name"), leftX, this.topPos + 16, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.init.trade_item"), leftX, this.topPos + 48, COLOR_TEXT, false);
 
-        this.drawAdjustRow(guiGraphics, Component.translatable("ui.trading_table.init.price"), this.menu.getUnitPrice(), rightX, this.topPos + 16);
-        this.drawAdjustRow(guiGraphics, Component.translatable("ui.trading_table.init.min"), this.menu.getMinTradeAmount(), rightX, this.topPos + 48);
+        this.drawAdjustRow(graphics, Component.translatable("ui.trading_table.init.price"), this.menu.getUnitPrice(), rightX, this.topPos + 16);
+        this.drawAdjustRow(graphics, Component.translatable("ui.trading_table.init.min"), this.menu.getMinTradeAmount(), rightX, this.topPos + 48);
     }
 }

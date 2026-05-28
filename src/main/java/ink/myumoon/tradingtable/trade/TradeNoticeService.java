@@ -9,7 +9,6 @@ import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -52,13 +51,11 @@ public final class TradeNoticeService extends SavedData {
     // 关闭通知
     final Map<UUID, List<DisabledRecord>> disabledNotices = new LinkedHashMap<>();
 
-    // 26.1.2: save()/load() 移除 → Codec 驱动序列化
     private static final Codec<TradeNoticeService> CODEC = CompoundTag.CODEC.comapFlatMap(
             tag -> DataResult.success(decode(tag)),
             TradeNoticeService::encode
     );
 
-    // 26.1.2: SavedData.Factory → SavedDataType record
     public static final SavedDataType<TradeNoticeService> TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath(HarvistasTradingTable.MODID, "trading_table_notices"),
             TradeNoticeService::new,
@@ -72,8 +69,6 @@ public final class TradeNoticeService extends SavedData {
     public static TradeNoticeService get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(TYPE);
     }
-
-    // === Codec 编解码 ===
 
     private static CompoundTag encode(TradeNoticeService data) {
         CompoundTag tag = new CompoundTag();

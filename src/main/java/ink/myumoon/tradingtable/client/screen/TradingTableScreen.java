@@ -144,30 +144,30 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean flag) {
-        double mx = event.x(), my = event.y();
+        double mouseX = event.x(), mouseY = event.y();
         int button = event.button();
         int mods = event.modifiers();
         if (this.tableNameBox != null && this.tableNameBox.mouseClicked(event, flag)) {
             this.setFocused(this.tableNameBox);
             return true;
         }
-        if (this.handleStepClick(this.minPlusButton, mx, my, button,
+        if (this.handleStepClick(this.minPlusButton, mouseX, mouseY, button,
                 TradingTableMenu.BUTTON_MIN_PLUS, TradingTableMenu.BUTTON_MIN_PLUS_8, TradingTableMenu.BUTTON_MIN_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.minMinusButton, mx, my, button,
+        if (this.handleStepClick(this.minMinusButton, mouseX, mouseY, button,
                 TradingTableMenu.BUTTON_MIN_MINUS, TradingTableMenu.BUTTON_MIN_MINUS_8, TradingTableMenu.BUTTON_MIN_MINUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.pricePlusButton, mx, my, button,
+        if (this.handleStepClick(this.pricePlusButton, mouseX, mouseY, button,
                 TradingTableMenu.BUTTON_PRICE_PLUS, TradingTableMenu.BUTTON_PRICE_PLUS_8, TradingTableMenu.BUTTON_PRICE_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.priceMinusButton, mx, my, button,
+        if (this.handleStepClick(this.priceMinusButton, mouseX, mouseY, button,
                 TradingTableMenu.BUTTON_PRICE_MINUS, TradingTableMenu.BUTTON_PRICE_MINUS_8, TradingTableMenu.BUTTON_PRICE_MINUS_32, false, mods)) {
             return true;
         }
-        if (this.handleExtractClick(mx, my, button, mods)) {
+        if (this.handleExtractClick(mouseX, mouseY, button, mods)) {
             return true;
         }
         return super.mouseClicked(event, flag);
@@ -323,22 +323,22 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         this.updateStateButtons();
-        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
-    private void drawAdjustBlock(GuiGraphicsExtractor g, Component label, String value, int x, int y) {
-        g.text(getFont(), label, x, y, COLOR_TEXT, false);
+    private void drawAdjustBlock(GuiGraphicsExtractor graphics, Component label, String value, int x, int y) {
+        graphics.text(getFont(), label, x, y, COLOR_TEXT, false);
         Component underlined = Component.literal(value).withStyle(style -> style.withUnderlined(true));
         int centerX = x + 42 - 4;
-        g.text(getFont(), underlined, centerX - getFont().width(underlined) / 2, y + 16, COLOR_TEXT, false);
+        graphics.text(getFont(), underlined, centerX - getFont().width(underlined) / 2, y + 16, COLOR_TEXT, false);
     }
 
     @Override
-    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
-        super.extractContents(g, mouseX, mouseY, partialTick);
+    public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header",
@@ -367,33 +367,33 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
             } else if (scroll > maxScroll) {
                 scroll = maxScroll;
             }
-            g.enableScissor(this.leftPos + 88, this.topPos + 6, this.leftPos + 88 + 160, this.topPos + 6 + 10);
-            g.text(getFont(), header, this.leftPos + 88 - scroll, this.topPos + 6, COLOR_TEXT, false);
-            g.disableScissor();
+            graphics.enableScissor(this.leftPos + 88, this.topPos + 6, this.leftPos + 88 + 160, this.topPos + 6 + 10);
+            graphics.text(getFont(), header, this.leftPos + 88 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            graphics.disableScissor();
         } else {
-            g.text(getFont(), header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
+            graphics.text(getFont(), header, this.leftPos + 88, this.topPos + 6, COLOR_TEXT, false);
         }
 
         int leftX = this.leftPos + PANEL_LEFT_X;
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 16, COLOR_TEXT, false);
-        this.drawAdjustBlock(g, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), leftX, this.topPos + 50);
-        this.drawAdjustBlock(g, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), leftX, this.topPos + 84);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 16, COLOR_TEXT, false);
+        this.drawAdjustBlock(graphics, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), leftX, this.topPos + 50);
+        this.drawAdjustBlock(graphics, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), leftX, this.topPos + 84);
 
-        g.text(getFont(), this.playerInventoryTitle, this.leftPos + 88, this.topPos + 73, COLOR_TEXT, false);
+        graphics.text(getFont(), this.playerInventoryTitle, this.leftPos + 88, this.topPos + 73, COLOR_TEXT, false);
 
         int rightX = this.leftPos + PANEL_RIGHT_X;
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.name"), rightX, this.topPos + 16, COLOR_TEXT, false);
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.trade_item"), rightX, this.topPos + 48, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.name"), rightX, this.topPos + 16, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.trade_item"), rightX, this.topPos + 48, COLOR_TEXT, false);
 
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.currency"), rightX, this.topPos + 82, COLOR_TEXT, false);
         String balance = String.format(Locale.ROOT, "%.1f", this.menu.getCashierBalance());
-        g.text(getFont(), balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
+        graphics.text(getFont(), balance, rightX + 8, this.topPos + 94, COLOR_TEXT, false);
         if (Config.isNeoEssentialsMode()) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
-            g.text(getFont(), symbol, rightX + getFont().width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
+            graphics.text(getFont(), symbol, rightX + getFont().width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
         } else {
             Item currencyItem = Config.getCurrencyItem();
-            g.item(new ItemStack(currencyItem), rightX + getFont().width(balance) + 2 + 8, this.topPos + 90);
+            graphics.item(new ItemStack(currencyItem), rightX + getFont().width(balance) + 2 + 8, this.topPos + 90);
         }
     }
 }

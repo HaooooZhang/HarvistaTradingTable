@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+// 目前换算机制只做了简单的尝试，后续会更新成通过 Config 配置面额的方式，以此实现更加通用的功能
 public final class ConversionService {
 	private static final String CANDIDATE_NAMESPACES = "random_economy";
 	private static final String[] COIN_IDS = {
@@ -138,13 +139,13 @@ public final class ConversionService {
 		PaymentPlan best = null;
 		long exactUse = Math.min(count, requiredAmount / value);
 
-		// 方案1：按当前面额的“精确最大值”取
+		// 按当前面额的“精确最大值”取
 		PaymentPlan exactTail = selectBestPayment(entries, index + 1, requiredAmount - exactUse * value, available);
 		if (exactTail != null) {
 			best = prepend(entry, exactUse, value, exactTail);
 		}
 
-		// 方案2：如果当前面额还能多取 1 个，则允许超额支付并停止继续向下拆
+		// 如果当前面额还能多取 1 个，则允许超额支付并停止继续向下拆
 		if (exactUse < count) {
 			long overpay = (exactUse + 1L) * value;
 			PaymentPlan overpayPlan = new PaymentPlan(overpay, new ArrayList<>());

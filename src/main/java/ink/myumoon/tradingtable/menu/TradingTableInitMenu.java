@@ -87,7 +87,7 @@ public class TradingTableInitMenu extends AbstractContainerMenu {
         this.inventory = inventory;
         this.addDataSlots(this.viewData);
 
-        // Trade item config slot (mapped to block inventory slot 0)
+        // Trade item slot (mapped to block inventory slot 0)
         this.addSlot(new ResourceHandlerSlot(inventory, inventory::set,0, 16, 59));
 
 

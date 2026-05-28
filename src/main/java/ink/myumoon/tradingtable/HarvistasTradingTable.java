@@ -27,7 +27,6 @@ public class HarvistasTradingTable {
         modEventBus.addListener(TradingTableCapabilities::registerCapabilities);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
-        // 玩家上线事件：发送离线累计通知（SavedData 自动管理加载/保存）
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
     }
 

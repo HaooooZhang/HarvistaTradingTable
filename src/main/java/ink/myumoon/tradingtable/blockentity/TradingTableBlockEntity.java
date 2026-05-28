@@ -389,7 +389,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
 
-        // 新 tick 时重置槽位追踪
+        // 重置库存追踪
         long currentTick = this.level != null ? this.level.getGameTime() : Long.MIN_VALUE;
         if (currentTick != this.lastConversionTick) {
             this.lastConversionTick = currentTick;
@@ -398,7 +398,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
         if (ConversionService.isEnabled()) {
             int size = this.inventory.size();
-            // Phase 1：只统计尚未转换的槽位
+            // 只统计尚未转换的槽位
             long totalValue = 0L;
             for (int i = 0; i < size; i++) {
                 if ((this.convertedSlotsMask & (1L << i)) != 0) {
@@ -417,7 +417,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
             this.convertingCurrencyDeposit = true;
             try {
-                // Phase 2：清除所有货币物品（包括已被重新插入的）
+                // 清除所有货币物品（包括已被重新插入的）
                 for (int i = 0; i < size; i++) {
                     ItemStack stack = this.inventory.copyToList().get(i);
                     if (stack.isEmpty()) {
@@ -441,7 +441,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         Item currencyItem = Config.getCurrencyItem();
         int size = this.inventory.size();
 
-        // Phase 1：只统计尚未转换的槽位
+        // 只统计尚未转换的槽位
         int totalCurrencyItems = 0;
         for (int i = 0; i < size; i++) {
             if ((this.convertedSlotsMask & (1L << i)) != 0) {
@@ -455,7 +455,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
 
         this.convertingCurrencyDeposit = true;
         try {
-            // Phase 2：清除所有货币物品（包括已被重新插入的）
+            // 清除所有货币物品（包括已被重新插入的）
             for (int i = 0; i < size; i++) {
                 ItemStack stack = this.inventory.copyToList().get(i);
                 if (!stack.is(currencyItem)) {
@@ -549,10 +549,6 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    /**
-     * 自动化视图：根据 canInsert/canExtract 限制对 inventory 的访问。
-     * 26.1.2: 纯 ResourceHandler<ItemResource> API，不再混用 IItemHandler。
-     */
     private class InventoryAutomationView implements ResourceHandler<ItemResource> {
         private final boolean canInsert;
         private final boolean canExtract;
@@ -661,7 +657,6 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
                 ? BuiltInRegistries.ITEM.get(tradeItemId).map(Holder.Reference::value).orElse(null)
                 : null;
 
-        // ValueInputExtension.readChild 直接处理 ValueIOSerializable
         input.readChild(TAG_INVENTORY, this.inventory);
     }
 
@@ -684,7 +679,6 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         output.putDouble(TAG_CURRENCY_BALANCE, this.currencyBalance);
         output.putBoolean(TAG_CURRENCY_MIGRATED, this.currencyMigrated);
 
-        // ValueOutputExtension.putChild 直接处理 ValueIOSerializable
         output.putChild(TAG_INVENTORY, this.inventory);
     }
 

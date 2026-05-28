@@ -17,7 +17,6 @@ import org.jetbrains.annotations.NotNull;
 
 public class SystemTradingTableInitMenu extends AbstractContainerMenu {
     public static final int BUTTON_INITIALIZE = 0;
-    public static final int BUTTON_SET_HELD_TRADE_ITEM = 1;
     public static final int BUTTON_TOGGLE_TYPE = 2;
     public static final int BUTTON_MIN_PLUS = 3;
     public static final int BUTTON_MIN_MINUS = 4;

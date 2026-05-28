@@ -6,7 +6,6 @@ import ink.myumoon.tradingtable.menu.SystemTradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.SystemTradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.SystemTradingTableMenu;
 import ink.myumoon.tradingtable.registries.TTBlockEntities;
-import ink.myumoon.tradingtable.registries.TTBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;

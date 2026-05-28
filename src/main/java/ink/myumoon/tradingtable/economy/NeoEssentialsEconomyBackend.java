@@ -6,14 +6,8 @@ import org.slf4j.Logger;
 
 import java.util.UUID;
 
-/**
- * NeoEssentials 经济系统服务封装。
- * <p>
- * 通过 {@code com.zerog.neoessentials.managers.EconomyManager#getInstance()} 单例
- * 直接操作玩家余额。若 NeoEssentials 未安装，所有方法返回安全默认值。
- * <p>
- * <b>所有方法必须在服务端调用。</b>
- */
+// NeoEssential 模组的经济系统后端，之后会尝试将不同的后端整合进一个接口。
+// 注释（JavaDoc）是 AI 写的
 public final class NeoEssentialsEconomyBackend {
     private static final Logger LOGGER = LogUtils.getLogger();
 

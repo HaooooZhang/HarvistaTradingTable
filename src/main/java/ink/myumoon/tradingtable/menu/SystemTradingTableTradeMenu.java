@@ -89,7 +89,7 @@ public class SystemTradingTableTradeMenu extends AbstractContainerMenu {
         this.access = access;
         this.addDataSlots(this.viewData);
 
-        // Player inventory (3x9).
+        // Player inventory (3x9)
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 int index = col + row * 9 + 9;
@@ -97,7 +97,7 @@ public class SystemTradingTableTradeMenu extends AbstractContainerMenu {
             }
         }
 
-        // Hotbar.
+        // Hotbar
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 166));
         }

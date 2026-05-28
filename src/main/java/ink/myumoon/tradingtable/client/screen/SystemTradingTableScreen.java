@@ -139,26 +139,26 @@ public class SystemTradingTableScreen extends AbstractContainerScreen<SystemTrad
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean flag) {
-        double mx = event.x(), my = event.y();
+        double mouseX = event.x(), mouseY = event.y();
         int button = event.button();
         int mods = event.modifiers();
         if (this.tableNameBox != null && this.tableNameBox.mouseClicked(event, flag)) {
             this.setFocused(this.tableNameBox);
             return true;
         }
-        if (this.handleStepClick(this.minPlusButton, mx, my, button,
+        if (this.handleStepClick(this.minPlusButton, mouseX, mouseY, button,
                 SystemTradingTableMenu.BUTTON_MIN_PLUS, SystemTradingTableMenu.BUTTON_MIN_PLUS_8, SystemTradingTableMenu.BUTTON_MIN_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.minMinusButton, mx, my, button,
+        if (this.handleStepClick(this.minMinusButton, mouseX, mouseY, button,
                 SystemTradingTableMenu.BUTTON_MIN_MINUS, SystemTradingTableMenu.BUTTON_MIN_MINUS_8, SystemTradingTableMenu.BUTTON_MIN_MINUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.pricePlusButton, mx, my, button,
+        if (this.handleStepClick(this.pricePlusButton, mouseX, mouseY, button,
                 SystemTradingTableMenu.BUTTON_PRICE_PLUS, SystemTradingTableMenu.BUTTON_PRICE_PLUS_8, SystemTradingTableMenu.BUTTON_PRICE_PLUS_32, false, mods)) {
             return true;
         }
-        if (this.handleStepClick(this.priceMinusButton, mx, my, button,
+        if (this.handleStepClick(this.priceMinusButton, mouseX, mouseY, button,
                 SystemTradingTableMenu.BUTTON_PRICE_MINUS, SystemTradingTableMenu.BUTTON_PRICE_MINUS_8, SystemTradingTableMenu.BUTTON_PRICE_MINUS_32, false, mods)) {
             return true;
         }
@@ -295,22 +295,22 @@ public class SystemTradingTableScreen extends AbstractContainerScreen<SystemTrad
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         doTick();
-        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
-    private void drawAdjustRow(GuiGraphicsExtractor g, Component label, String value, int x, int y) {
-        g.text(getFont(), label, x, y, COLOR_TEXT, false);
+    private void drawAdjustRow(GuiGraphicsExtractor graphics, Component label, String value, int x, int y) {
+        graphics.text(getFont(), label, x, y, COLOR_TEXT, false);
         Component underlined = Component.literal(value).withStyle(style -> style.withUnderlined(true));
         int valueX = x + 40 - getFont().width(underlined) / 2;
-        g.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 5, COLOR_TEXT, false);
+        graphics.text(getFont(), underlined, valueX, y + ROW_LABEL_OFFSET + 5, COLOR_TEXT, false);
     }
 
     @Override
-    public void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        g.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
-        super.extractContents(g, mouseX, mouseY, partialTick);
+    public void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, MANAGE_BG_TEXTURE, this.leftPos, this.topPos, 0.0F, 0.0F, this.imageWidth, this.imageHeight, BG_TEXTURE_WIDTH, BG_TEXTURE_HEIGHT);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
 
         Component header = Component.translatable(
                 "ui.trading_table.trade.header", this.title, Component.translatable("container.trading_table.manage")
@@ -337,21 +337,21 @@ public class SystemTradingTableScreen extends AbstractContainerScreen<SystemTrad
             } else if (scroll > maxScroll) {
                 scroll = maxScroll;
             }
-            g.enableScissor(this.leftPos + 8, this.topPos + 6, this.leftPos + 8 + 160, this.topPos + 6 + 10);
-            g.text(getFont(), header, this.leftPos + 8 - scroll, this.topPos + 6, COLOR_TEXT, false);
-            g.disableScissor();
+            graphics.enableScissor(this.leftPos + 8, this.topPos + 6, this.leftPos + 8 + 160, this.topPos + 6 + 10);
+            graphics.text(getFont(), header, this.leftPos + 8 - scroll, this.topPos + 6, COLOR_TEXT, false);
+            graphics.disableScissor();
         } else {
-            g.text(getFont(), header, this.leftPos + 8, this.topPos + 6, COLOR_TEXT, false);
+            graphics.text(getFont(), header, this.leftPos + 8, this.topPos + 6, COLOR_TEXT, false);
         }
 
         int leftX = this.leftPos + LEFT_PANEL_X;
         int rightX = this.leftPos + RIGHT_PANEL_X;
 
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.name"), leftX, this.topPos + 16, COLOR_TEXT, false);
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.trade_item"), leftX, this.topPos + 48, COLOR_TEXT, false);
-        g.text(getFont(), Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 81, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.name"), leftX, this.topPos + 16, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.trade_item"), leftX, this.topPos + 48, COLOR_TEXT, false);
+        graphics.text(getFont(), Component.translatable("ui.trading_table.manage.type"), leftX, this.topPos + 81, COLOR_TEXT, false);
 
-        this.drawAdjustRow(g, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), rightX, this.topPos + 16);
-        this.drawAdjustRow(g, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), rightX, this.topPos + 48);
+        this.drawAdjustRow(graphics, Component.translatable("ui.trading_table.manage.price"), Integer.toString(this.menu.getUnitPrice()), rightX, this.topPos + 16);
+        this.drawAdjustRow(graphics, Component.translatable("ui.trading_table.manage.min"), Integer.toString(this.menu.getMinTradeAmount()), rightX, this.topPos + 48);
     }
 }

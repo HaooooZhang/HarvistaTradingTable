@@ -29,6 +29,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import org.jspecify.annotations.NonNull;
 
 @EventBusSubscriber(modid = HarvistasTradingTable.MODID)
 public class BlockTradingTable extends Block implements EntityBlock {
@@ -45,12 +46,12 @@ public class BlockTradingTable extends Block implements EntityBlock {
     }
 
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
         return new TradingTableBlockEntity(pos, state);
     }
 
     @Override
-    public InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult){
+    public @NonNull InteractionResult useWithoutItem(@NonNull BlockState state, Level level, @NonNull BlockPos pos, @NonNull Player player, @NonNull BlockHitResult hitResult){
         if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer){
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof TradingTableBlockEntity tradingTableBlockEntity) {
@@ -93,8 +94,9 @@ public class BlockTradingTable extends Block implements EntityBlock {
         builder.add(FACING, INITIALIZED, ENABLED);
     }
 
+    // 破坏方块验证
     @Override
-    public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player, ItemStack toolStack, boolean willHarvest, FluidState fluid) {
+    public boolean onDestroyedByPlayer(@NonNull BlockState state, Level level, @NonNull BlockPos pos, @NonNull Player player, @NonNull ItemStack toolStack, boolean willHarvest, @NonNull FluidState fluid) {
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof TradingTableBlockEntity tradingTableBlockEntity
                 && tradingTableBlockEntity.isInitialized()
@@ -107,13 +109,13 @@ public class BlockTradingTable extends Block implements EntityBlock {
         return super.onDestroyedByPlayer(state, level, pos, player, toolStack, willHarvest, fluid);
     }
 
+    // 貌似 BlockBehaviour#onRemove 没有了，所以用了更加...神秘的方法。
     @SubscribeEvent
     public static void onBlockRemove(BreakBlockEvent event) {
         if(!event.getState().is(TTBlocks.TRADING_TABLE)){
             return;
         }
 
-        BlockState state = event.getState();
         Level level = (Level) event.getLevel();
         BlockPos pos = event.getPos();
 
