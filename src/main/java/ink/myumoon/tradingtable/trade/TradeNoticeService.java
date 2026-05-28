@@ -146,13 +146,15 @@ public final class TradeNoticeService extends SavedData {
             String key = isBuyOrder
                     ? "message.trading_table.notice.trade_buy"
                     : "message.trading_table.notice.trade_sell";
-            String itemName = table.getTradeItem() != null
-                    ? table.getTradeItem().getDescriptionId()
-                    : "?";
-            String tableName = table.getTableName().isBlank() ? "Trade Table" : table.getTableName();
+            Component itemName = table.getTradeItem() != null
+                    ? Component.translatable(table.getTradeItem().getDescriptionId())
+                    : Component.literal("?");
+            Component tableNameComp = table.getTableName().isBlank()
+                    ? Component.translatable("block.trading_table.trading_table")
+                    : Component.literal(table.getTableName());
             ownerPlayer.sendSystemMessage(Component.translatable(key,
-                    trader.getName().getString(),
-                    tableName,
+                    trader.getName(),
+                    tableNameComp,
                     amount,
                     itemName,
                     formatMoney(ownerMoney)));
@@ -172,12 +174,15 @@ public final class TradeNoticeService extends SavedData {
             return;
         }
 
-        String tableName = table.getTableName().isBlank() ? "Trade Table" : table.getTableName();
+        String rawTableName = table.getTableName();
         String noticeKey = "message.trading_table.stock_too_low".equals(reasonKey)
                 ? "message.trading_table.notice.disabled_stock"
                 : "message.trading_table.notice.disabled_balance";
         String posShort = table.getBlockPos().toShortString();
-        Component msg = Component.translatable(noticeKey, tableName, posShort);
+        Component tableNameComp = rawTableName.isBlank()
+                ? Component.translatable("block.trading_table.trading_table")
+                : Component.literal(rawTableName);
+        Component msg = Component.translatable(noticeKey, tableNameComp, posShort);
 
         ServerPlayer ownerPlayer = level.getServer().getPlayerList().getPlayer(ownerUuid);
         if (ownerPlayer != null) {
@@ -185,7 +190,7 @@ public final class TradeNoticeService extends SavedData {
         } else {
             TradeNoticeService data = get(level.getServer());
             boolean isStock = "message.trading_table.stock_too_low".equals(reasonKey);
-            data.addDisabled(ownerUuid, new DisabledRecord(tableName, posShort, isStock));
+            data.addDisabled(ownerUuid, new DisabledRecord(rawTableName, posShort, isStock));
             data.setDirty();
         }
     }
@@ -225,7 +230,10 @@ public final class TradeNoticeService extends SavedData {
                 String noticeKey = rec.isStock
                         ? "message.trading_table.notice.disabled_stock"
                         : "message.trading_table.notice.disabled_balance";
-                player.sendSystemMessage(Component.translatable(noticeKey, rec.tableName, rec.posShort));
+                Component nameComp = rec.tableName.isBlank()
+                        ? Component.translatable("block.trading_table.trading_table")
+                        : Component.literal(rec.tableName);
+                player.sendSystemMessage(Component.translatable(noticeKey, nameComp, rec.posShort));
             }
         }
     }
