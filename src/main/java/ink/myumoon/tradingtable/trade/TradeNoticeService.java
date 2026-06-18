@@ -6,6 +6,7 @@ import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -26,18 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * 贸易台 Owner 通知的 {@link SavedData} 持久化。
- * <p>
- * 通过 {@code server.overworld().getDataStorage()} 挂载到 Overworld
- * ，随世界自动加载/保存。
- * <ul>
- *   <li>交易完成后向 Owner 发送聊天通知（在线即时发送，离线累计）</li>
- *   <li>贸易台因库存/余额不足关闭时通知 Owner</li>
- *   <li>Owner 上线时汇总发送离线期间累计收支</li>
- * </ul>
- * 所有操作受 {@link Config#getTradeNotice()} 控制。
- */
 public final class TradeNoticeService extends SavedData {
     private static final String TAG_EARNED = "Earned";
     private static final String TAG_SPENT = "Spent";
@@ -245,6 +234,17 @@ public final class TradeNoticeService extends SavedData {
         }
     }
 
+    /**
+     * 供外部（如 NMI 离线结算）调用的通知累加入口。
+     * @param uuid 玩家 UUID
+     * @param isSpent true=支出, false=收入
+     * @param money 金额
+     */
+    public void accumulateForNotice(UUID uuid, boolean isSpent, double money) {
+        this.accumulate(uuid, isSpent, money);
+        this.setDirty();
+    }
+
     private void addDisabled(UUID ownerUuid, DisabledRecord record) {
         synchronized (this.pending) {
             this.disabledNotices.computeIfAbsent(ownerUuid, k -> new ArrayList<>()).add(record);
@@ -252,6 +252,11 @@ public final class TradeNoticeService extends SavedData {
     }
 
     private static String formatMoney(double amount) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            long count = (long) Math.floor(amount);
+            String unitName = Component.translatable("unit.neo_mystias_izakaya.en").getString();
+            return count + " " + unitName;
+        }
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
             return symbol + String.format("%.2f", amount);

@@ -425,7 +425,8 @@ public class TradingTableMenu extends AbstractContainerMenu {
     }
 
     private boolean handleCashierExtract(Player player, TradingTableBlockEntity table, int buttonId) {
-        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS
+                || Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             return false;
         }
         Item currencyItem = Config.getCurrencyItem();

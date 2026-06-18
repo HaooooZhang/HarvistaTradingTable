@@ -3,6 +3,7 @@ package ink.myumoon.tradingtable.trade;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.network.chat.Component;
@@ -73,6 +74,28 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.stock_not_enough_for_request", false);
         }
 
+        // MystiasIzakaya 模式：通过反射 API 检查并扣除玩家余额
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            int intGross = (int) Math.floor(gross);
+            int intNet = (int) Math.floor(net);
+            if (MystiasIzakayaEconomyBackend.getBalance(player) < intGross) {
+                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
+                return TradeResult.fail("message.trading_table.stock_too_low", true);
+            }
+            if (!MystiasIzakayaEconomyBackend.subtractBalance(player, intGross)) {
+                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            giveToPlayer(player, new ItemStack(tradeItem, amount));
+            table.depositCurrency(net);
+            if (player.level() instanceof ServerLevel serverLevel) {
+                TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+            }
+            grantTradeAdvancement(player);
+            return TradeResult.success("message.trading_table.trade_success");
+        }
+
         // NeoEssentials 模式：通过 API 检查并扣除玩家余额
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             double playerBalance = NeoEssentialsEconomyBackend.getBalance(player.getUUID());
@@ -140,6 +163,36 @@ public final class TradingService {
         ItemStack simulatedRemainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), true);
         if (!simulatedRemainder.isEmpty()) {
             return TradeResult.fail("message.trading_table.stock_full", false);
+        }
+
+        // MystiasIzakaya 模式：通过反射 API 检查余额、扣款、转账
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            int intNet = (int) Math.floor(net);
+            if (table.getCurrencyBalance() + 1.0E-9D < (double) table.getUnitPrice()) {
+                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
+            }
+            if (table.getCurrencyBalance() + 1.0E-9D < gross) {
+                return TradeResult.fail("message.trading_table.owner_currency_not_enough_for_request", false);
+            }
+
+            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
+            if (!remainder.isEmpty()) {
+                return TradeResult.fail("message.trading_table.stock_full", false);
+            }
+            if (!removeFromPlayer(player, tradeItem, amount)) {
+                return TradeResult.fail("message.trading_table.player_item_too_low", false);
+            }
+            if (!table.tryWithdrawCurrency(gross)) {
+                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
+            }
+            if (!MystiasIzakayaEconomyBackend.addBalance(player, intNet)) {
+                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            if (player.level() instanceof ServerLevel serverLevel) {
+                TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
+            }
+            grantTradeAdvancement(player);
+            return TradeResult.success("message.trading_table.trade_success");
         }
 
         // NeoEssentials 模式：通过 API 检查余额、扣款、转账

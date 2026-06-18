@@ -3,6 +3,7 @@ package ink.myumoon.tradingtable.trade;
 import ink.myumoon.tradingtable.blockentity.SystemTradingTableBlockEntity;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -48,6 +49,20 @@ public final class SystemTradingService {
      */
     private static TradingService.TradeResult executeSellOrder(Player player, SystemTradingTableBlockEntity table,
                                                                 Item tradeItem, int amount, int minAmount, double gross) {
+        // MystiasIzakaya 模式：通过反射 API 检查并扣除玩家余额
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            int intGross = (int) Math.floor(gross);
+            if (MystiasIzakayaEconomyBackend.getBalance(player) < intGross) {
+                return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            if (!MystiasIzakayaEconomyBackend.subtractBalance(player, intGross)) {
+                return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+            TradingService.grantTradeAdvancement(player);
+            return TradingService.TradeResult.success("message.trading_table.trade_success");
+        }
+
         // NeoEssentials 模式：通过 API 检查并扣除玩家余额
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             double playerBalance = NeoEssentialsEconomyBackend.getBalance(player.getUUID());
@@ -98,6 +113,19 @@ public final class SystemTradingService {
         }
         if (playerItems < amount) {
             return TradingService.TradeResult.fail("message.trading_table.player_item_too_low", false);
+        }
+
+        // MystiasIzakaya 模式
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            if (!TradingService.removeFromPlayer(player, tradeItem, amount)) {
+                return TradingService.TradeResult.fail("message.trading_table.player_item_too_low", false);
+            }
+            int intNet = (int) Math.floor(net);
+            if (!MystiasIzakayaEconomyBackend.addBalance(player, intNet)) {
+                return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
+            }
+            TradingService.grantTradeAdvancement(player);
+            return TradingService.TradeResult.success("message.trading_table.trade_success");
         }
 
         // NeoEssentials 模式

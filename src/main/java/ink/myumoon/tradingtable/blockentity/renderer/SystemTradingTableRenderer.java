@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -74,6 +75,11 @@ public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTra
         double dz = cameraState.pos.z - state.blockPos.getZ() - 0.5;
         float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
         poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
+
+        // 方块物品在 FIXED 上下文中朝向相反，补 180° 翻转
+        if (state.tradeItem instanceof BlockItem) {
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+        }
 
         poseStack.scale(0.5F, 0.5F, 0.5F);
 

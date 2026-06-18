@@ -56,6 +56,10 @@ public class Config {
         return resolvedCurrencyBackend == CurrencyBackend.NEO_ESSENTIALS;
     }
 
+    public static boolean isMystiasIzakayaMode() {
+        return resolvedCurrencyBackend == CurrencyBackend.MYSTIAS_IZAKAYA;
+    }
+
     public static Item getCurrencyItem() {
         return resolvedCurrencyItem;
     }

@@ -1,6 +1,8 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.blockentity.TradingTableBlockEntity;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
@@ -104,12 +106,12 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         this.confirmTradeItemButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.trade_item.confirm"), b -> sendButton(TradingTableMenu.BUTTON_CONFIRM_TRADE_ITEM))
                 .bounds(rightX + 34, this.topPos + 58, 36, 20)
                 .build());
-        if (!Config.isNeoEssentialsMode()) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.ITEM) {
             this.extractButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.extract"), b -> sendButton(TradingTableMenu.BUTTON_EXTRACT))
                     .bounds(rightX, this.topPos + 106, 76, 20)
                     .build());
         }
-        if (!Config.isNeoEssentialsMode()) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.ITEM) {
             this.saveButton = this.addRenderableWidget(Button.builder(Component.translatable("ui.trading_table.manage.save"), b -> sendSaveWithTableName())
                 .bounds(rightX, this.topPos + 130, 76, 20)
                 .build());
@@ -391,6 +393,9 @@ public class TradingTableScreen extends AbstractContainerScreen<TradingTableMenu
         if (Config.isNeoEssentialsMode()) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
             graphics.text(getFont(), symbol, rightX + getFont().width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
+        } else if (Config.isMystiasIzakayaMode()) {
+            String unitName = Component.translatable("unit.neo_mystias_izakaya.en").getString();
+            graphics.text(getFont(), unitName, rightX + getFont().width(balance) + 2 + 8, this.topPos + 94, COLOR_TEXT, false);
         } else {
             Item currencyItem = Config.getCurrencyItem();
             graphics.item(new ItemStack(currencyItem), rightX + getFont().width(balance) + 2 + 8, this.topPos + 90);

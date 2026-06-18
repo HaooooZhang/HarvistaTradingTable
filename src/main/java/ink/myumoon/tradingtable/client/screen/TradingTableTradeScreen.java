@@ -1,6 +1,8 @@
 package ink.myumoon.tradingtable.client.screen;
 
 import ink.myumoon.tradingtable.config.Config;
+import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.trade.TaxService;
@@ -210,9 +212,14 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             }else{
                 displayTax = String.format("%s",(long)taxAmount);
             }
-            String currencyName = Config.isNeoEssentialsMode()
-                    ? NeoEssentialsEconomyBackend.getCurrencySymbol()
-                    : I18n.get(Config.getCurrencyItem().getDescriptionId());
+            String currencyName;
+            if (Config.isNeoEssentialsMode()) {
+                currencyName = NeoEssentialsEconomyBackend.getCurrencySymbol();
+            } else if (Config.isMystiasIzakayaMode()) {
+                currencyName = Component.translatable("unit.neo_mystias_izakaya.en").getString();
+            } else {
+                currencyName = I18n.get(Config.getCurrencyItem().getDescriptionId());
+            }
             Component taxComp = Component.translatable("ui.trading_table.tax.tooltip", (int)(Config.getTaxRate() * 100), displayTax, currencyName);
             java.util.List<net.minecraft.util.FormattedCharSequence> lines = getFont().split(taxComp, 180);
             graphics.setTooltipForNextFrame(getFont(), lines, mouseX, mouseY);
@@ -274,6 +281,14 @@ public class TradingTableTradeScreen extends AbstractContainerScreen<TradingTabl
             graphics.text(getFont(),
                     Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
                     currencyIconX + getFont().width(NeoEssentialsEconomyBackend.getCurrencySymbol()) + 4,
+                    priceY,
+                    COLOR_TEXT, false);
+        } else if (Config.isMystiasIzakayaMode()) {
+            String unitName = Component.translatable("unit.neo_mystias_izakaya.en").getString();
+            graphics.text(getFont(), unitName, currencyIconX, priceY, COLOR_TEXT, false);
+            graphics.text(getFont(),
+                    Component.translatable("ui.trading_table.trade.line.min_suffix", this.menu.getMinTradeAmount()),
+                    currencyIconX + getFont().width(unitName) + 4,
                     priceY,
                     COLOR_TEXT, false);
         } else {

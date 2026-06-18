@@ -4,6 +4,7 @@ import ink.myumoon.tradingtable.HarvistasTradingTable;
 import ink.myumoon.tradingtable.config.Config;
 import ink.myumoon.tradingtable.block.BlockTradingTable;
 import ink.myumoon.tradingtable.config.CurrencyBackend;
+import ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend;
 import ink.myumoon.tradingtable.economy.NeoEssentialsEconomyBackend;
 import ink.myumoon.tradingtable.menu.TradingTableInitMenu;
 import ink.myumoon.tradingtable.menu.TradingTableMenu;
@@ -159,6 +160,12 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             }
             return NeoEssentialsEconomyBackend.getBalance(this.owner);
         }
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            if (this.owner == null || this.level == null || this.level.isClientSide()) {
+                return 0.0D;
+            }
+            return MystiasIzakayaEconomyBackend.getBalance(this.owner);
+        }
         return this.currencyBalance;
     }
 
@@ -180,6 +187,16 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
             }
             return ok;
         }
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            if (this.owner == null) {
+                return false;
+            }
+            boolean ok = MystiasIzakayaEconomyBackend.subtractBalance(this.owner, amount);
+            if (ok) {
+                this.setChanged();
+            }
+            return ok;
+        }
         if (this.currencyBalance + 1.0E-9D < amount) {
             return false;
         }
@@ -189,6 +206,13 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public void depositCurrency(double amount) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            if (this.owner != null) {
+                MystiasIzakayaEconomyBackend.addBalance(this.owner, amount);
+            }
+            this.setChanged();
+            return;
+        }
         if (amount <= 0.0D) {
             return;
         }
@@ -385,7 +409,8 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         if (this.convertingCurrencyDeposit) {
             return;
         }
-        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS
+                || Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             return;
         }
 
@@ -477,7 +502,7 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         if (this.currencyMigrated) {
             return;
         }
-        if (Config.getCurrencyBackend() != CurrencyBackend.NEO_ESSENTIALS) {
+        if (Config.getCurrencyBackend() == CurrencyBackend.ITEM) {
             this.currencyMigrated = true;
             return;
         }
@@ -496,13 +521,18 @@ public class TradingTableBlockEntity extends BlockEntity implements MenuProvider
         }
 
         double toMigrate = this.currencyBalance;
-        boolean ok = NeoEssentialsEconomyBackend.addBalance(this.owner, toMigrate);
+        boolean ok;
+        if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
+            ok = NeoEssentialsEconomyBackend.addBalance(this.owner, toMigrate);
+        } else {
+            ok = MystiasIzakayaEconomyBackend.addBalance(this.owner, toMigrate);
+        }
         if (ok) {
             this.currencyBalance = 0.0D;
             this.currencyMigrated = true;
             this.setChanged();
             HarvistasTradingTable.LOGGER.info(
-                    "Migrated {} stored currency to NeoEssentials for owner {} at {}",
+                    "Migrated {} stored currency for owner {} at {}",
                     toMigrate, this.owner, this.worldPosition);
         }
         // 失败则下次再试
