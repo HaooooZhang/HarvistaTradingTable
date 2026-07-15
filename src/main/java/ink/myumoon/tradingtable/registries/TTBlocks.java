@@ -21,6 +21,7 @@ public final class TTBlocks {
                     .explosionResistance(1200f)
                     .lightLevel(state -> state.getValue(BlockTradingTable.INITIALIZED) ? 7 : 0)
                     .sound(SoundType.COPPER)
+                    .noOcclusion()
                     .requiresCorrectToolForDrops()
     );
 
@@ -33,6 +34,7 @@ public final class TTBlocks {
                     .explosionResistance(1200f)
                     .lightLevel(state -> state.getValue(BlockSystemTradingTable.INITIALIZED) ? 7 : 0)
                     .sound(SoundType.METAL)
+                    .noOcclusion()
                     .requiresCorrectToolForDrops()
     );
 }

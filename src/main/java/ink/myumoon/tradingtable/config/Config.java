@@ -24,9 +24,9 @@ public class Config {
             .comment("Compatibility with Item Currency from other mods")
             .define("CompatibilityMode", true);
 
-    public static final ModConfigSpec.DoubleValue TAX_RATE = BUILDER
+    public static final ModConfigSpec.ConfigValue<String> TAX_RATE = BUILDER
             .comment("Tax rate in [0, 1]")
-            .defineInRange("taxRate", 0.0D, 0.0D, 1.0D);
+            .define("taxRate", "0.0");
 
     public static final ModConfigSpec.IntValue ADMIN_PERMISSION_LEVEL = BUILDER
             .comment("Permission level that counts as admin for management/breaking checks")
@@ -87,7 +87,12 @@ public class Config {
 
         resolvedCurrencyBackend = CURRENCY_BACKEND.get();
         resolvedCompatibilityMode = COMPATIBILITY_MODE.get();
-        resolvedTaxRate = TAX_RATE.get();
+        try {
+            resolvedTaxRate = Double.parseDouble(TAX_RATE.get().trim());
+        } catch (NumberFormatException e) {
+            resolvedTaxRate = 0.0D;
+        }
+        resolvedTaxRate = Math.max(0.0D, Math.min(1.0D, resolvedTaxRate));
         resolvedAdminPermissionLevel = ADMIN_PERMISSION_LEVEL.get();
         resolvedTradeNotice = TRADE_NOTICE.get();
 

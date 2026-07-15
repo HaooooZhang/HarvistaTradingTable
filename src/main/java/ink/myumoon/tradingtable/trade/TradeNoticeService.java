@@ -251,19 +251,28 @@ public final class TradeNoticeService extends SavedData {
         }
     }
 
-    private static String formatMoney(double amount) {
+    // 返回 Component 而非 String：物品模式下需要本地化的物品名（ getDescriptionId()
+    // 只是翻译键），字符串塞进 Component.translatable 的 %s 后不会再被翻译。
+    private static Component formatMoney(double amount) {
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             long count = (long) Math.floor(amount);
-            String unitName = Component.translatable("unit.neo_mystias_izakaya.en").getString();
-            return count + " " + unitName;
+            return Component.empty()
+                    .append(Component.literal(String.valueOf(count)))
+                    .append(Component.literal(" "))
+                    .append(Component.translatable("unit.neo_mystias_izakaya.en"));
         }
         if (Config.getCurrencyBackend() == CurrencyBackend.NEO_ESSENTIALS) {
             String symbol = NeoEssentialsEconomyBackend.getCurrencySymbol();
-            return symbol + String.format("%.2f", amount);
+            return Component.literal(symbol + String.format("%.2f", amount));
         }
         long count = (long) Math.floor(amount);
-        String itemName = Config.getCurrencyItem().getDescriptionId();
-        return count + " " + itemName;
+        // 与 Mystias 分支保持一致：直接用 Component.translatable 包裹翻译键，
+        // 作为占位符 Component 喂给外层 Component.translatable 的 %s 时会在客户端本地化。
+        Component itemName = Component.translatable(Config.getCurrencyItem().getDescriptionId());
+        return Component.empty()
+                .append(Component.literal(String.valueOf(count)))
+                .append(Component.literal(" "))
+                .append(itemName);
     }
 
     // 离线期间贸易台关闭通知记录。
