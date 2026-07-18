@@ -28,6 +28,10 @@ sourceSets.main.resources {
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+    // 使用 ./libs 目录下的本地 jar 文件作为 flatDir 仓库
+    flatDir {
+        dirs 'libs'
+    }
 }
 
 base {
@@ -113,6 +117,13 @@ configurations {
 }
 
 dependencies {
+
+    // NeoMystiasIzakaya 货币 API（compileOnly 引用其工具类，运行时通过 mods.toml 声明 optional 依赖）
+    // jar 命名：neo_mystias_izakaya-neoforge-${nmi_mc_version}-${nmi_version}.jar，放在 ./libs 目录下
+    // 注意：flatDir 仓库会忽略版本号匹配，仅按文件名查找
+    compileOnly "blank:neo_mystias_izakaya-neoforge:${nmi_version}"
+    localRuntime "blank:neo_mystias_izakaya-neoforge:${nmi_version}"
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"

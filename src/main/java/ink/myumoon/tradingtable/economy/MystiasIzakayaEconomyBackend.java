@@ -1,12 +1,17 @@
 package ink.myumoon.tradingtable.economy;
 
 import com.mojang.logging.LogUtils;
+import icu.gensoukyo.neo_mystias_izakaya.NeoMystiasIzakaya;
+import icu.gensoukyo.neo_mystias_izakaya.common.util.NMICommonBalanceUtil;
+import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalance;
+import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceEntry;
+import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceUnits;
+import icu.gensoukyo.neo_mystias_izakaya.content.economy.transaction.NMIBalanceTransactionReasons;
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -15,17 +20,21 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
  * NeoMystiasIzakaya 模组的经济系统后端。
  * <p>
- * 通过反射调用 NMICommonBalanceUtil（静态工具类），无编译依赖。
- * 在线玩家直接通过 NMI API 操作余额；离线玩家读取 NBT 文件获取基准余额，
- * 所有离线期间的变更记录在 {@link MystiasIzakayaPendingBalance} SavedData 中，
- * 玩家上线时一次性结算。
+ * 直接调用 NMI 新版货币 API（{@link NMICommonBalanceUtil}），通过 compileOnly 依赖，
+ * 运行时通过 mods.toml 声明 optional 依赖。当 NMI 不存在时，所有方法返回安全默认值
+ * 且不会抛出 ClassNotFoundException（懒加载检测，见 {@link #isAvailable()}）。
+ * <p>
+ * 在线玩家直接走 NMI API；离线玩家将变更记录到 {@link MystiasIzakayaPendingBalance}
+ * SavedData 中，玩家上线时一次性结算（{@code HarvistasTradingTable#onPlayerLoggedIn}）。
+ * <p>
+ * 离线余额查询读取玩家 .dat 文件中的 NeoForge Attachment 数据（NMI 的持久化格式），
+ * 叠加 PendingBalance 中的净变化量。<b>注意：NBT 快照可能滞后数分钟（取决于自动保存间隔），
+ * 因此离线预检结果只能作为参考，真正扣款/入账需检查返回的 {@link ChangeResult}。</b>
  */
 public final class MystiasIzakayaEconomyBackend {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -33,10 +42,54 @@ public final class MystiasIzakayaEconomyBackend {
     private MystiasIzakayaEconomyBackend() {
     }
 
-    // --- public API ---
+    // --- 常量 ---
+
+    /** NMI Attachment NBT key（BALANCE 附件持久化到玩家 .dat 的路径段） */
+    private static final String ATTACHMENT_KEY = "neo_mystias_izakaya:balance";
+
+    /** EN 货币单位的 identifier 字符串（仅用作离线 NBT 读取时的比对；在线时使用 {@link NMIBalanceUnits#EN}） */
+    private static final String EN_UNIT_ID = "neo_mystias_izakaya:en";
+
+    /** 货币显示用的 NMI 翻译键（与 NMI 自身的交易日志显示一致） */
+    public static final String EN_TRANSLATION_KEY = "unit.neo_mystias_izakaya.en";
+
+    /** 标记 NMI 是否可用（懒加载）。任何 NMI 类被链接访问前都会先检查此标记。 */
+    private static volatile Boolean available;
+
+    // --- 内部 Result 类型 ---
+
+    /**
+     * 扣款 / 入账的执行结果。
+     * <p>
+     * 由于 NMI 的 insert/extract 在事件被取消或竞争时可能只完成部分操作，
+     * 调用方应同时检查 {@link #applied()}（实际生效的金额）与 {@link #requested()}，
+     * 若 {@code applied < requested} 表示部分操作未生效，需自行回滚。
+     */
+    public record ChangeResult(boolean success, int requested, int applied) {
+        static ChangeResult fullSuccess(int amount) {
+            return new ChangeResult(true, amount, amount);
+        }
+
+        static ChangeResult fullFailure(int amount) {
+            return new ChangeResult(false, amount, 0);
+        }
+
+        /**
+         * 在请求金额 = 应用金额时返回 true。调用方在 {@code success=true} 时可信任完全扣款；
+         * 在 {@code success=false} 时若 {@code applied>0}，表示部分扣款已发生，需要回滚补偿。
+         */
+        public boolean fullyApplied() {
+            return applied == requested;
+        }
+    }
+
+    // --- public API: 余额查询 ---
 
     /**
      * 查询玩家余额（通过 UUID）。
+     * <p>
+     * 在线玩家返回实时值；离线玩家返回 NBT 快照 + SavedData 净变化量（可能略有滞后，
+     * 因此只用于 UI 显示，不要仅凭此判断交易可执行性）。
      *
      * @param uuid 玩家 UUID
      * @return 余额（EN 数量），NMI 不可用或玩家不存在返回 0
@@ -51,175 +104,217 @@ public final class MystiasIzakayaEconomyBackend {
         }
         ServerPlayer player = server.getPlayerList().getPlayer(uuid);
         if (player != null) {
-            return (double) getBalance(player);
+            return getBalance(player);
         }
-        // 离线：NBT 基准 + SavedData 净变化量
         long nbtBalance = readBalanceFromNbt(server, uuid);
         int netDelta = MystiasIzakayaPendingBalance.get(server).getNetDelta(uuid);
         return (double) (nbtBalance + netDelta);
     }
 
     /**
-     * 直接获取在线玩家余额（已有 Player 实例时使用，性能更好）。
+     * 直接获取在线玩家余额（已有 Player 实例时使用，性能更好且实时）。
      */
     public static long getBalance(Player player) {
         if (!isAvailable() || player == null) {
             return 0L;
         }
         try {
-            Object result = getEnMethod().invoke(null, player);
-            return result instanceof Number n ? n.longValue() : 0L;
-        } catch (Exception e) {
+            long en = NMICommonBalanceUtil.getEn(player);
+            LOGGER.debug("NMI getEn({}) = {}", player.getName().getString(), en);
+            return en;
+        } catch (Throwable e) {
             logError("getBalance", player.getUUID(), e);
             return 0L;
         }
     }
 
     /**
+     * 检查玩家余额是否足够（基于 {@link #getBalance(UUID)}）。
+     */
+    public static boolean hasBalance(UUID uuid, double amount) {
+        return getBalance(uuid) >= amount;
+    }
+
+    // --- public API: 余额变更（UUID，调度在线/离线） ---
+
+    /**
      * 增加玩家余额（通过 UUID）。
      *
      * @param uuid   玩家 UUID
      * @param amount 金额（正数，向下取整为 int）
-     * @return 是否成功
+     * @return 是否完全成功
      */
     public static boolean addBalance(UUID uuid, double amount) {
+        return addBalanceDetailed(uuid, amount).fullyApplied();
+    }
+
+    /**
+     * 与 {@link #addBalance(UUID, double)} 相同，但返回详细结果以便上层回滚部分应用。
+     */
+    public static ChangeResult addBalanceDetailed(UUID uuid, double amount) {
         if (!isAvailable() || uuid == null || amount <= 0.0D) {
-            return false;
+            return ChangeResult.fullFailure((int) Math.floor(amount));
         }
         int intAmount = (int) Math.floor(amount);
         if (intAmount <= 0) {
-            return false;
+            return ChangeResult.fullFailure(intAmount);
         }
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) {
-            return false;
+            return ChangeResult.fullFailure(intAmount);
         }
         ServerPlayer player = server.getPlayerList().getPlayer(uuid);
         if (player != null) {
-            return addBalance(player, intAmount);
+            return addBalanceDetailed(player, intAmount);
         }
-        // 离线：写入 SavedData 净变化量
+        // 离线：写入 SavedData 净变化量（操作可逆，玩家上线时结算）
         MystiasIzakayaPendingBalance.get(server).addNetDelta(uuid, intAmount);
-        return true;
-    }
-
-    /**
-     * 直接增加在线玩家余额（已有 Player 实例时使用）。
-     * 绕过 NMI 的 insertEn/extractEn（存在事务 bug），直接操作 NMIBalance 对象。
-     */
-    public static boolean addBalance(Player player, int amount) {
-        if (!isAvailable() || player == null || amount <= 0) {
-            return false;
-        }
-        try {
-            long current = getBalance(player);
-            long target = current + amount;
-            setBalanceDirect(player, target);
-            return true;
-        } catch (Exception e) {
-            logError("addBalance", player.getUUID(), e);
-            return false;
-        }
-    }
-
-    /**
-     * 直接减少在线玩家余额（已有 Player 实例时使用）。
-     * 绕过 NMI 的 insertEn/extractEn（存在事务 bug），直接操作 NMIBalance 对象。
-     */
-    public static boolean subtractBalance(Player player, int amount) {
-        if (!isAvailable() || player == null || amount <= 0) {
-            return false;
-        }
-        try {
-            long current = getBalance(player);
-            if (current < amount) {
-                return false;
-            }
-            long target = current - amount;
-            setBalanceDirect(player, target);
-            return true;
-        } catch (Exception e) {
-            logError("subtractBalance", player.getUUID(), e);
-            return false;
-        }
-    }
-
-    /**
-     * 直接设置玩家余额为指定值。
-     * 通过 get(player) 获取副本 → 修改 EN entry count → set(player, balance) 写回。
-     * 完全绕过 NMI 的 insert/extract 事务逻辑。
-     */
-    private static void setBalanceDirect(Player player, long target) throws Exception {
-        // 1. 获取余额副本
-        Object balanceCopy = getBalanceCopyMethod().invoke(null, player);
-
-        // 2. 遍历 entries，找到 EN 条目并修改 count
-        int size = (int) sizeMethod().invoke(balanceCopy);
-        boolean found = false;
-        for (int i = 0; i < size; i++) {
-            Object entry = getResourceMethod().invoke(balanceCopy, i);
-            Identifier item = (Identifier) getItemMethod().invoke(entry);
-            if (EN_UNIT_ID.equals(item.toString())) {
-                setCountMethod().invoke(entry, target);
-                found = true;
-                break;
-            }
-        }
-
-        // 3. 如果没有 EN 条目，新建一个并用它替换 EMPTY 槽位
-        if (!found) {
-            Object enIdentifier = identifierOf(REASON_NAMESPACE, "en");
-            Object newEntry = createEntryConstructor().newInstance(enIdentifier, target);
-            @SuppressWarnings("unchecked")
-            java.util.List<Object> list = (java.util.List<Object>) getEntriesMethod().invoke(balanceCopy);
-            int lastIdx = list.size() - 1;
-            if (lastIdx >= 0) {
-                list.set(lastIdx, newEntry);
-            } else {
-                list.add(newEntry);
-            }
-            // 确保始终有一个 EMPTY 槽位
-            Object emptyIdentifier = identifierOf(REASON_NAMESPACE, "empty");
-            Object emptyEntry = createEntryConstructor().newInstance(emptyIdentifier, 0L);
-            list.add(emptyEntry);
-        }
-
-        // 4. 写回玩家数据
-        setBalanceMethod().invoke(null, player, balanceCopy);
+        return ChangeResult.fullSuccess(intAmount);
     }
 
     /**
      * 减少玩家余额（通过 UUID）。调用前需自行检查余额是否足够。
-     *
-     * @param uuid   玩家 UUID
-     * @param amount 金额（正数，向下取整为 int）
-     * @return 是否成功
      */
     public static boolean subtractBalance(UUID uuid, double amount) {
+        return subtractBalanceDetailed(uuid, amount).fullyApplied();
+    }
+
+    /**
+     * 与 {@link #subtractBalance(UUID, double)} 相同，但返回详细结果以便上层回滚部分应用。
+     */
+    public static ChangeResult subtractBalanceDetailed(UUID uuid, double amount) {
         if (!isAvailable() || uuid == null || amount <= 0.0D) {
-            return false;
+            return ChangeResult.fullFailure((int) Math.floor(amount));
         }
         int intAmount = (int) Math.floor(amount);
         if (intAmount <= 0) {
-            return false;
+            return ChangeResult.fullFailure(intAmount);
         }
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) {
-            return false;
+            return ChangeResult.fullFailure(intAmount);
         }
         ServerPlayer player = server.getPlayerList().getPlayer(uuid);
         if (player != null) {
-            return subtractBalance(player, intAmount);
+            return subtractBalanceDetailed(player, intAmount);
         }
         // 离线：先检查余额是否足够（NBT + netDelta），再记录负的净变化量
         long nbtBalance = readBalanceFromNbt(server, uuid);
         int netDelta = MystiasIzakayaPendingBalance.get(server).getNetDelta(uuid);
         if (nbtBalance + netDelta < intAmount) {
-            return false;
+            return ChangeResult.fullFailure(intAmount);
         }
         MystiasIzakayaPendingBalance.get(server).addNetDelta(uuid, -intAmount);
-        return true;
+        return ChangeResult.fullSuccess(intAmount);
     }
+
+    // --- public API: 余额变更（在线 Player，原子提交） ---
+
+    /**
+     * 直接增加在线玩家余额（已有 Player 实例时使用）。
+     * 调用 NMI {@link NMICommonBalanceUtil#insertEn}，使用 SALE（卖出/收入）作为交易原因。
+     *
+     * @param player 在线玩家
+     * @param amount 金额（正数）
+     * @return 是否成功插入全部金额
+     */
+    public static boolean addBalance(Player player, int amount) {
+        return addBalanceDetailed(player, amount).fullyApplied();
+    }
+
+    /**
+     * 同 {@link #addBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
+     * <p>
+     * <b>绕过 NMI insertEn 的 Identifier == bug：</b>
+     * NMI 的 {@code NMIBalance.isValid()} 用 {@code ==} 而非 {@code equals()} 比较 Identifier，
+     * 导致对 NBT 反序列化的余额条目操作全部失败。此处直接操作 {@link NMIBalance} 对象来规避。
+     */
+    public static ChangeResult addBalanceDetailed(Player player, int amount) {
+        if (!isAvailable() || player == null || amount <= 0) {
+            return ChangeResult.fullFailure(amount);
+        }
+        try {
+            NMIBalance balance = NMICommonBalanceUtil.getWithOutCopy(player);
+            java.util.List<NMIBalanceEntry> entries = balance.getEntries();
+
+            // 查找已存在的 EN 条目（用 .equals() 的 is() 方法，不受 NMI 的 == bug 影响）
+            for (NMIBalanceEntry entry : entries) {
+                if (entry.is(NMIBalanceUnits.EN)) {
+                    entry.setCount(entry.getCount() + amount);
+                    NMICommonBalanceUtil.set(player, balance);
+                    LOGGER.debug("NMI addBalance (direct): player={} amount={} newCount={}",
+                            player.getName().getString(), amount, entry.getCount());
+                    return ChangeResult.fullSuccess(amount);
+                }
+            }
+
+            // 没有 EN 条目：新建一个，插入到 EMPTY 之前
+            NMIBalanceEntry newEntry = new NMIBalanceEntry(NMIBalanceUnits.EN, amount);
+            entries.add(entries.size() - 1, newEntry); // EMPTY 始终在最后
+            NMICommonBalanceUtil.set(player, balance);
+            LOGGER.debug("NMI addBalance (direct,new): player={} amount={}", player.getName().getString(), amount);
+            return ChangeResult.fullSuccess(amount);
+        } catch (Throwable e) {
+            logError("addBalance", player.getUUID(), e);
+            return ChangeResult.fullFailure(amount);
+        }
+    }
+
+    /**
+     * 直接减少在线玩家余额（已有 Player 实例时使用）。
+     * 调用 NMI {@link NMICommonBalanceUtil#extractEn}，使用 PURCHASE（购买/支出）作为交易原因。
+     * <p>
+     * <b>注意：调用前应先用 {@link #getBalance(Player)} 检查余额；但即使预检通过，
+     * 在异步事件 / 并发扣款下仍可能失败。本方法在余额不足时不会扣任何钱。</b>
+     *
+     * @param player 在线玩家
+     * @param amount 金额（正数）
+     * @return 是否成功扣除全部金额
+     */
+    public static boolean subtractBalance(Player player, int amount) {
+        return subtractBalanceDetailed(player, amount).fullyApplied();
+    }
+
+    /**
+     * 同 {@link #subtractBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
+     * <p>
+     * <b>绕过 NMI extractEn 的 Identifier == bug：</b>
+     * 同 addBalanceDetailed，直接操作 NMIBalance 对象。
+     */
+    public static ChangeResult subtractBalanceDetailed(Player player, int amount) {
+        if (!isAvailable() || player == null || amount <= 0) {
+            return ChangeResult.fullFailure(amount);
+        }
+        try {
+            long current = NMICommonBalanceUtil.getEn(player);
+            LOGGER.debug("NMI subtractBalance: player={} currentEN={} requested={}",
+                    player.getName().getString(), current, amount);
+            if (current < amount) {
+                LOGGER.debug("NMI subtractBalance FAILED: insufficient EN (have {}, need {})", current, amount);
+                return ChangeResult.fullFailure(amount);
+            }
+
+            NMIBalance balance = NMICommonBalanceUtil.getWithOutCopy(player);
+            java.util.List<NMIBalanceEntry> entries = balance.getEntries();
+            for (NMIBalanceEntry entry : entries) {
+                if (entry.is(NMIBalanceUnits.EN)) {
+                    entry.setCount(entry.getCount() - amount);
+                    NMICommonBalanceUtil.set(player, balance);
+                    LOGGER.debug("NMI subtractBalance SUCCESS: player={} deducted={} newCount={}",
+                            player.getName().getString(), amount, entry.getCount());
+                    return ChangeResult.fullSuccess(amount);
+                }
+            }
+            // 没有 EN 条目但余额检查通过了（理论上不可能，getEn 会返回 0）
+            LOGGER.warn("NMI subtractBalance: EN entry not found despite getEn={}", current);
+            return ChangeResult.fullFailure(amount);
+        } catch (Throwable e) {
+            logError("subtractBalance", player.getUUID(), e);
+            return ChangeResult.fullFailure(amount);
+        }
+    }
+
+    // --- public API: 其他 ---
 
     /**
      * 设置玩家余额到指定值（通过 UUID）。
@@ -236,32 +331,26 @@ public final class MystiasIzakayaEconomyBackend {
     }
 
     /**
-     * 检查玩家余额是否足够。
-     */
-    public static boolean hasBalance(UUID uuid, double amount) {
-        return getBalance(uuid) >= amount;
-    }
-
-    /**
-     * 转账：from 扣款，to 存款（非原子操作）。
+     * 转账：from 扣款，to 存款。
+     * <p>
+     * 先预扣款（失败立即返回 false），再尝试入账；入账失败时回滚扣款。
      */
     public static boolean transfer(UUID from, UUID to, double amount) {
-        if (!hasBalance(from, amount)) {
+        ChangeResult deduct = subtractBalanceDetailed(from, amount);
+        if (!deduct.fullyApplied()) {
             return false;
         }
-        if (!subtractBalance(from, amount)) {
-            return false;
-        }
-        if (!addBalance(to, amount)) {
-            // 回滚
-            addBalance(from, amount);
+        ChangeResult credit = addBalanceDetailed(to, amount);
+        if (!credit.fullyApplied()) {
+            // 回滚扣款
+            addBalance(from, deduct.applied());
             return false;
         }
         return true;
     }
 
     /**
-     * 获取货币显示文本（翻译键对应的原文或兜底 "EN"）。
+     * 获取货币显示文本（兜底 "EN"，调用方应优先使用 {@link #EN_TRANSLATION_KEY} 做本地化显示）。
      */
     public static String getCurrencySymbol() {
         if (!isAvailable()) {
@@ -270,11 +359,58 @@ public final class MystiasIzakayaEconomyBackend {
         return "EN";
     }
 
-    // --- internal: NBT reading ---
+    /**
+     * 暴露 NMI 是否可用，供上层在配置不一致时给出提示。
+     */
+    public static boolean available() {
+        return isAvailable();
+    }
+
+    // --- internal: 可用性检测 ---
+
+    /**
+     * 检测 NMI 是否在运行时存在。
+     * 直接尝试链接 NMI 的核心类；缺失时返回 false，且不再访问任何 NMI 类型。
+     * 仅检测一次，结果缓存。
+     */
+    private static boolean isAvailable() {
+        if (available == null) {
+            synchronized (MystiasIzakayaEconomyBackend.class) {
+                if (available == null) {
+                    boolean ok;
+                    try {
+                        Class.forName(NeoMystiasIzakaya.class.getName(), false,
+                                MystiasIzakayaEconomyBackend.class.getClassLoader());
+                        // 触发类链接验证：访问常量字段防止编译期擦除
+                        Object ignored = NMIBalanceUnits.EN;
+                        ok = ignored != null;
+                    } catch (Throwable e) {
+                        ok = false;
+                    }
+                    available = ok;
+                    if (ok) {
+                        HarvistasTradingTable.LOGGER.info(
+                                "NeoMystiasIzakaya economy backend detected and available.");
+                    } else {
+                        HarvistasTradingTable.LOGGER.warn(
+                                "NeoMystiasIzakaya not found. MYSTIAS_IZAKAYA currency backend will be unavailable.");
+                    }
+                }
+            }
+        }
+        return available;
+    }
+
+    // --- internal: 离线 NBT 读取 ---
 
     /**
      * 从玩家 .dat 文件中读取 NMI EN 余额。
-     * NBT 路径：neoforge:attachments."neo_mystias_izakaya:balance" → entries[] → {item, count}
+     * NBT 路径：{@code neoforge:attachments}."neo_mystias_izakaya:balance" → entries[] → {item, count}
+     * <p>
+     * 该结构对应 {@link NMIBalance#getEntries()} 的 {@link NMIBalanceEntry#MAP_CODEC} 序列化格式。
+     * <p>
+     * <b>注意：NBT 反映的是玩家最后一次保存（退出或自动保存）时的状态，可能滞后真实余额数分钟，
+     * 仅适合作为离线预检参考。</b>
      */
     private static long readBalanceFromNbt(MinecraftServer server, UUID uuid) {
         try {
@@ -291,7 +427,7 @@ public final class MystiasIzakayaEconomyBackend {
             ListTag entries = balanceTag.getListOrEmpty("entries");
             for (int i = 0; i < entries.size(); i++) {
                 CompoundTag entry = entries.getCompoundOrEmpty(i);
-                if (EN_UNIT_ID.equals(entry.getString("item"))) {
+                if (EN_UNIT_ID.equals(entry.getStringOr("item", ""))) {
                     return entry.getLongOr("count", 0L);
                 }
             }
@@ -301,171 +437,7 @@ public final class MystiasIzakayaEconomyBackend {
         return 0L;
     }
 
-    // --- internal: reflection ---
-
-    /** NMICommonBalanceUtil 类名 */
-    private static final String BALANCE_UTIL_CLASS = "icu.gensoukyo.neo_mystias_izakaya.common.util.NMICommonBalanceUtil";
-    /** NMIBalance 类名 */
-    private static final String BALANCE_CLASS = "icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalance";
-    /** NMIBalanceEntry 类名 */
-    private static final String BALANCE_ENTRY_CLASS = "icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceEntry";
-
-    /** NMI Attachment NBT key */
-    private static final String ATTACHMENT_KEY = "neo_mystias_izakaya:balance";
-
-    /** EN 货币单位的 identifier 字符串 */
-    private static final String EN_UNIT_ID = "neo_mystias_izakaya:en";
-
-    /** 交易原因的 namespace */
-    private static final String REASON_NAMESPACE = "neo_mystias_izakaya";
-
-    /** 标记 NMI 是否可用 */
-    private static volatile Boolean available;
-
-    /** 缓存的反射类与方法 */
-    private static volatile Class<?> balanceUtilClass;
-    private static volatile Class<?> balanceClass;
-    private static volatile Class<?> balanceEntryClass;
-    private static volatile Method getEnMethod;
-    private static volatile Method getBalanceCopyMethod;
-    private static volatile Method setBalanceMethod;
-    private static volatile Method sizeMethod;
-    private static volatile Method getResourceMethod;
-    private static volatile Method getItemMethod;
-    private static volatile Method setCountMethod;
-    private static volatile Method getEntriesMethod;
-    private static volatile Constructor<?> createEntryConstructor;
-
-    private static boolean isAvailable() {
-        if (available == null) {
-            synchronized (MystiasIzakayaEconomyBackend.class) {
-                if (available == null) {
-                    try {
-                        balanceUtilClass = Class.forName(BALANCE_UTIL_CLASS, false,
-                                MystiasIzakayaEconomyBackend.class.getClassLoader());
-                        balanceClass = Class.forName(BALANCE_CLASS, false,
-                                MystiasIzakayaEconomyBackend.class.getClassLoader());
-                        balanceEntryClass = Class.forName(BALANCE_ENTRY_CLASS, false,
-                                MystiasIzakayaEconomyBackend.class.getClassLoader());
-                        // NMICommonBalanceUtil 方法
-                        getEnMethod = balanceUtilClass.getMethod("getEn", Player.class);
-                        getBalanceCopyMethod = balanceUtilClass.getMethod("get", Player.class);
-                        setBalanceMethod = balanceUtilClass.getMethod("set", Player.class, balanceClass);
-                        // NMIBalance 方法
-                        sizeMethod = balanceClass.getMethod("size");
-                        getResourceMethod = balanceClass.getMethod("getResource", int.class);
-                        getEntriesMethod = balanceClass.getMethod("getEntries");
-                        // NMIBalanceEntry 方法
-                        getItemMethod = balanceEntryClass.getMethod("getItem");
-                        setCountMethod = balanceEntryClass.getMethod("setCount", long.class);
-                        createEntryConstructor = balanceEntryClass.getConstructor(Identifier.class, long.class);
-                        available = true;
-                        HarvistasTradingTable.LOGGER.info("NeoMystiasIzakaya economy backend detected and available.");
-                    } catch (ClassNotFoundException e) {
-                        available = false;
-                        HarvistasTradingTable.LOGGER.warn(
-                                "NeoMystiasIzakaya not found. MYSTIAS_IZAKAYA currency backend will be unavailable.");
-                    } catch (NoSuchMethodException e) {
-                        available = false;
-                        HarvistasTradingTable.LOGGER.warn(
-                                "NeoMystiasIzakaya API mismatch: {}", e.getMessage());
-                    }
-                }
-            }
-        }
-        return available;
-    }
-
-    private static Method getEnMethod() throws Exception {
-        if (getEnMethod == null) {
-            getEnMethod = balanceUtilClass().getMethod("getEn", Player.class);
-        }
-        return getEnMethod;
-    }
-
-    private static Method getBalanceCopyMethod() throws Exception {
-        if (getBalanceCopyMethod == null) {
-            getBalanceCopyMethod = balanceUtilClass().getMethod("get", Player.class);
-        }
-        return getBalanceCopyMethod;
-    }
-
-    private static Method setBalanceMethod() throws Exception {
-        if (setBalanceMethod == null) {
-            setBalanceMethod = balanceUtilClass().getMethod("set", Player.class, balanceClass());
-        }
-        return setBalanceMethod;
-    }
-
-    private static Method sizeMethod() throws Exception {
-        if (sizeMethod == null) {
-            sizeMethod = balanceClass().getMethod("size");
-        }
-        return sizeMethod;
-    }
-
-    private static Method getResourceMethod() throws Exception {
-        if (getResourceMethod == null) {
-            getResourceMethod = balanceClass().getMethod("getResource", int.class);
-        }
-        return getResourceMethod;
-    }
-
-    private static Method getItemMethod() throws Exception {
-        if (getItemMethod == null) {
-            getItemMethod = balanceEntryClass().getMethod("getItem");
-        }
-        return getItemMethod;
-    }
-
-    private static Method setCountMethod() throws Exception {
-        if (setCountMethod == null) {
-            setCountMethod = balanceEntryClass().getMethod("setCount", long.class);
-        }
-        return setCountMethod;
-    }
-
-    private static Method getEntriesMethod() throws Exception {
-        if (getEntriesMethod == null) {
-            getEntriesMethod = balanceClass().getMethod("getEntries");
-        }
-        return getEntriesMethod;
-    }
-
-    private static Constructor<?> createEntryConstructor() throws Exception {
-        if (createEntryConstructor == null) {
-            createEntryConstructor = balanceEntryClass().getConstructor(Identifier.class, long.class);
-        }
-        return createEntryConstructor;
-    }
-
-    private static Class<?> balanceUtilClass() throws ClassNotFoundException {
-        if (balanceUtilClass == null) {
-            balanceUtilClass = Class.forName(BALANCE_UTIL_CLASS);
-        }
-        return balanceUtilClass;
-    }
-
-    private static Class<?> balanceClass() throws ClassNotFoundException {
-        if (balanceClass == null) {
-            balanceClass = Class.forName(BALANCE_CLASS);
-        }
-        return balanceClass;
-    }
-
-    private static Class<?> balanceEntryClass() throws ClassNotFoundException {
-        if (balanceEntryClass == null) {
-            balanceEntryClass = Class.forName(BALANCE_ENTRY_CLASS);
-        }
-        return balanceEntryClass;
-    }
-
-    /** 创建 Identifier，避免重复 tryParse */
-    private static Identifier identifierOf(String namespace, String path) {
-        return Identifier.fromNamespaceAndPath(namespace, path);
-    }
-
-    private static void logError(String method, UUID uuid, Exception e) {
+    private static void logError(String method, UUID uuid, Throwable e) {
         LOGGER.error("MystiasIzakayaEconomyBackend.{} failed for player {}: {}",
                 method, uuid, e.toString());
         Throwable cause = e.getCause();

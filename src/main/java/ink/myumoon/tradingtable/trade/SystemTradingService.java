@@ -49,13 +49,12 @@ public final class SystemTradingService {
      */
     private static TradingService.TradeResult executeSellOrder(Player player, SystemTradingTableBlockEntity table,
                                                                 Item tradeItem, int amount, int minAmount, double gross) {
-        // MystiasIzakaya 模式：通过反射 API 检查并扣除玩家余额
+        // MystiasIzakaya 模式：先原子扣款（失败不部分扣），再发物品；扣款失败时不生成物品
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             int intGross = (int) Math.floor(gross);
-            if (MystiasIzakayaEconomyBackend.getBalance(player) < intGross) {
-                return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
-            }
-            if (!MystiasIzakayaEconomyBackend.subtractBalance(player, intGross)) {
+            MystiasIzakayaEconomyBackend.ChangeResult paid =
+                    MystiasIzakayaEconomyBackend.subtractBalanceDetailed(player, intGross);
+            if (!paid.fullyApplied()) {
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
@@ -115,13 +114,17 @@ public final class SystemTradingService {
             return TradingService.TradeResult.fail("message.trading_table.player_item_too_low", false);
         }
 
-        // MystiasIzakaya 模式
+        // MystiasIzakaya 模式：先扣玩家物品，成功后原子入账；入账失败要退回玩家物品
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             if (!TradingService.removeFromPlayer(player, tradeItem, amount)) {
                 return TradingService.TradeResult.fail("message.trading_table.player_item_too_low", false);
             }
             int intNet = (int) Math.floor(net);
-            if (!MystiasIzakayaEconomyBackend.addBalance(player, intNet)) {
+            MystiasIzakayaEconomyBackend.ChangeResult credited =
+                    MystiasIzakayaEconomyBackend.addBalanceDetailed(player, intNet);
+            if (!credited.fullyApplied()) {
+                // 入账失败，退还已扣的物品
+                TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             TradingService.grantTradeAdvancement(player);

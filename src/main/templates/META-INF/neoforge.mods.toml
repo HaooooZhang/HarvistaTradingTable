@@ -82,6 +82,15 @@ Trade with other players!
     ordering="NONE"
     side="BOTH"
 
+# NeoMystiasIzakaya — 货币 API 后端（optional，玩家未安装时使用 ITEM 后端）
+# NMI 通过 NeoForge Attachment 提供玩家数据，本模组需在其后初始化
+[[dependencies.${mod_id}]]
+    modId="neo_mystias_izakaya"
+    type="optional"
+    versionRange="[26.1.5,)"
+    ordering="AFTER"
+    side="BOTH"
+
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.

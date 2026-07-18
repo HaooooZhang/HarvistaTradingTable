@@ -41,6 +41,10 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.trade_disabled", false);
         }
 
+        ink.myumoon.tradingtable.HarvistasTradingTable.LOGGER.debug(
+                "executeTrade: backend={} isBuyOrder={} unitPrice={} amount={}",
+                Config.getCurrencyBackend(), table.isBuyOrder(), table.getUnitPrice(), amount);
+
         Item tradeItem = table.getTradeItem();
         if (tradeItem == null) {
             return TradeResult.fail("message.trading_table.invalid_trade_item", true);
@@ -74,21 +78,29 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.stock_not_enough_for_request", false);
         }
 
-        // MystiasIzakaya 模式：通过反射 API 检查并扣除玩家余额
+        // MystiasIzakaya 模式：调用 NMI 货币 API 进行原子扣款后再操作库存，失败时不会部分生效
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            ink.myumoon.tradingtable.HarvistasTradingTable.LOGGER.debug(
+                    "executeSellOrder NMI branch: gross={} net={}", gross, net);
             int intGross = (int) Math.floor(gross);
             int intNet = (int) Math.floor(net);
-            if (MystiasIzakayaEconomyBackend.getBalance(player) < intGross) {
+
+            // 1. 先扣款（内部已做余额检查，余额不足不会部分扣款，安全）
+            MystiasIzakayaEconomyBackend.ChangeResult paid =
+                    MystiasIzakayaEconomyBackend.subtractBalanceDetailed(player, intGross);
+            if (!paid.fullyApplied()) {
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
+
+            // 2. 扣库存（失败需把款项退回给玩家，避免有钱无货）
             if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
+                MystiasIzakayaEconomyBackend.addBalance(player, intGross);
                 return TradeResult.fail("message.trading_table.stock_too_low", true);
             }
-            if (!MystiasIzakayaEconomyBackend.subtractBalance(player, intGross)) {
-                return TradeResult.fail("message.trading_table.player_currency_too_low", false);
-            }
+
+            // 3. 把物品发给玩家；owner 入账 net
             giveToPlayer(player, new ItemStack(tradeItem, amount));
-            table.depositCurrency(net);
+            table.depositCurrency(intNet);
             if (player.level() instanceof ServerLevel serverLevel) {
                 TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
             }
@@ -165,27 +177,40 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.stock_full", false);
         }
 
-        // MystiasIzakaya 模式：通过反射 API 检查余额、扣款、转账
+        // MystiasIzakaya 模式：先扣 owner 余额（原子，失败不部分扣），再操作库存/玩家物品/玩家入账
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
+            ink.myumoon.tradingtable.HarvistasTradingTable.LOGGER.debug(
+                    "executeBuyOrder NMI branch: gross={} net={}", gross, net);
+            int intGross = (int) Math.floor(gross);
             int intNet = (int) Math.floor(net);
-            if (table.getCurrencyBalance() + 1.0E-9D < (double) table.getUnitPrice()) {
-                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
-            }
-            if (table.getCurrencyBalance() + 1.0E-9D < gross) {
-                return TradeResult.fail("message.trading_table.owner_currency_not_enough_for_request", false);
+
+            // 离线/在线均使用同一接口；trustWithdrawCurrency 内部走 subtractBalanceDetailed，
+            // 失败时返回 false 且余额保持原样（不会部分扣）。
+            if (!table.tryWithdrawCurrency(intGross)) {
+                // owner 余额不足是临时状态，不要关闭台位
+                return TradeResult.fail("message.trading_table.owner_currency_too_low", false);
             }
 
+            // 把玩家物品注入交易台库存
             ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
             if (!remainder.isEmpty()) {
+                // 回滚 owner 扣款
+                table.depositCurrency(intGross);
                 return TradeResult.fail("message.trading_table.stock_full", false);
             }
+            // 扣除玩家手中物品
             if (!removeFromPlayer(player, tradeItem, amount)) {
+                // 回滚：取出刚放入的库存 + owner 扣款
+                removeFromHandler(table.getInventoryHandler(), tradeItem, amount);
+                table.depositCurrency(intGross);
                 return TradeResult.fail("message.trading_table.player_item_too_low", false);
             }
-            if (!table.tryWithdrawCurrency(gross)) {
-                return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
-            }
+            // 玩家拿到净收入
             if (!MystiasIzakayaEconomyBackend.addBalance(player, intNet)) {
+                // 入账失败，理论上 insert 不会失败。回滚全部状态。
+                giveToPlayer(player, new ItemStack(tradeItem, amount));
+                removeFromHandler(table.getInventoryHandler(), tradeItem, amount);
+                table.depositCurrency(intGross);
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             if (player.level() instanceof ServerLevel serverLevel) {

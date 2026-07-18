@@ -128,6 +128,7 @@ public class BlockTradingTable extends Block implements EntityBlock {
                 }
             }
 
+            if (Config.isNeoEssentialsMode() || Config.isMystiasIzakayaMode()){ return; }
             long balance = (long) Math.floor(tradingTableBlockEntity.getCurrencyBalance());
             if (balance > 0L) {
                 if (ConversionService.isEnabled()) {

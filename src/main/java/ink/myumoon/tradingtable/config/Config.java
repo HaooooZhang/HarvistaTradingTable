@@ -96,6 +96,13 @@ public class Config {
         resolvedAdminPermissionLevel = ADMIN_PERMISSION_LEVEL.get();
         resolvedTradeNotice = TRADE_NOTICE.get();
 
+        // NMI 模式下若 NMI 未安装，所有交易都会静默失败。发出一次性告警以便管理员排查
+        if (resolvedCurrencyBackend == CurrencyBackend.MYSTIAS_IZAKAYA
+                && !ink.myumoon.tradingtable.economy.MystiasIzakayaEconomyBackend.available()) {
+            com.mojang.logging.LogUtils.getLogger().warn(
+                    "Config 'currencyBackend = MYSTIAS_IZAKAYA' but NeoMystiasIzakaya is not present. "
+                            + "All MYSTIAS_IZAKAYA-mode trades will silently fail. Consider switching to ITEM backend.");
+        }
 
         Identifier itemId = Identifier.tryParse(CURRENCY_ITEM.get().trim());
         if (itemId != null && BuiltInRegistries.ITEM.containsKey(itemId)) {

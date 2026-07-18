@@ -41,13 +41,26 @@ public class HarvistasTradingTable {
                 if (netDelta != 0) {
                     TradeNoticeService notice = TradeNoticeService.get(player.level().getServer());
                     if (netDelta > 0) {
-                        MystiasIzakayaEconomyBackend.addBalance(player, netDelta);
-                        // netDelta > 0: 入账 → 收入
-                        notice.accumulateForNotice(player.getUUID(), false, netDelta);
+                        // 上线后入账：仅当 addBalance 完全成功才发收入通知
+                        if (MystiasIzakayaEconomyBackend.addBalance(player, netDelta)) {
+                            notice.accumulateForNotice(player.getUUID(), false, netDelta);
+                        } else {
+                            LOGGER.warn(
+                                    "Failed to settle pending NMI credit of {} EN for player {} (event canceled by NMI); "
+                                            + "the pending delta was already drained and lost.",
+                                    netDelta, player.getUUID());
+                        }
                     } else {
-                        MystiasIzakayaEconomyBackend.subtractBalance(player, -netDelta);
-                        // netDelta < 0: 出账 → 支出
-                        notice.accumulateForNotice(player.getUUID(), true, -netDelta);
+                        // 上线后扣款：玩家下线期间通过贸易台发生了出账。优先尝试扣款；若余额不足则沉没损失
+                        int toSubtract = -netDelta;
+                        if (MystiasIzakayaEconomyBackend.subtractBalance(player, toSubtract)) {
+                            notice.accumulateForNotice(player.getUUID(), true, toSubtract);
+                        } else {
+                            LOGGER.warn(
+                                    "Failed to settle pending NMI debit of {} EN for player {} "
+                                            + "(insufficient balance or event canceled); the pending delta was already drained and lost.",
+                                    toSubtract, player.getUUID());
+                        }
                     }
                 }
             }
