@@ -82,12 +82,10 @@ Trade with other players!
     ordering="NONE"
     side="BOTH"
 
-# NeoMystiasIzakaya — 货币 API 后端（optional，玩家未安装时使用 ITEM 后端）
-# NMI 通过 NeoForge Attachment 提供玩家数据，本模组需在其后初始化
 [[dependencies.${mod_id}]]
     modId="neo_mystias_izakaya"
     type="optional"
-    versionRange="[26.1.5,)"
+    versionRange="[26.1.4,)"
     ordering="AFTER"
     side="BOTH"
 
