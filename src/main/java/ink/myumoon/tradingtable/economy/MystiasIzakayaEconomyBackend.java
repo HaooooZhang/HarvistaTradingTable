@@ -1,12 +1,10 @@
 package ink.myumoon.tradingtable.economy;
 
 import com.mojang.logging.LogUtils;
-import icu.gensoukyo.neo_mystias_izakaya.NeoMystiasIzakaya;
 import icu.gensoukyo.neo_mystias_izakaya.common.util.NMICommonBalanceUtil;
 import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalance;
 import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceEntry;
 import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceUnits;
-import icu.gensoukyo.neo_mystias_izakaya.content.economy.transaction.NMIBalanceTransactionReasons;
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -122,6 +120,9 @@ public final class MystiasIzakayaEconomyBackend {
             long en = NMICommonBalanceUtil.getEn(player);
             LOGGER.debug("NMI getEn({}) = {}", player.getName().getString(), en);
             return en;
+        } catch (LinkageError e) {
+            markUnavailableDueToLinkageError(e);
+            return 0L;
         } catch (Throwable e) {
             logError("getBalance", player.getUUID(), e);
             return 0L;
@@ -254,6 +255,9 @@ public final class MystiasIzakayaEconomyBackend {
             NMICommonBalanceUtil.set(player, balance);
             LOGGER.debug("NMI addBalance (direct,new): player={} amount={}", player.getName().getString(), amount);
             return ChangeResult.fullSuccess(amount);
+        } catch (LinkageError e) {
+            markUnavailableDueToLinkageError(e);
+            return ChangeResult.fullFailure(amount);
         } catch (Throwable e) {
             logError("addBalance", player.getUUID(), e);
             return ChangeResult.fullFailure(amount);
@@ -307,6 +311,9 @@ public final class MystiasIzakayaEconomyBackend {
             }
             // 没有 EN 条目但余额检查通过了（理论上不可能，getEn 会返回 0）
             LOGGER.warn("NMI subtractBalance: EN entry not found despite getEn={}", current);
+            return ChangeResult.fullFailure(amount);
+        } catch (LinkageError e) {
+            markUnavailableDueToLinkageError(e);
             return ChangeResult.fullFailure(amount);
         } catch (Throwable e) {
             logError("subtractBalance", player.getUUID(), e);
@@ -370,25 +377,23 @@ public final class MystiasIzakayaEconomyBackend {
 
     /**
      * 检测 NMI 是否在运行时存在。
-     * 直接尝试链接 NMI 的核心类；缺失时返回 false，且不再访问任何 NMI 类型。
-     * 仅检测一次，结果缓存。
+     * <p>
+     * 使用 {@link net.neoforged.fml.ModList#isLoaded} 检测而非 {@code Class.forName}，
+     * 因为独立服务器上 NeoForge 会为每个 Mod 做 ClassLoader 隔离——
+     * 我们自己的 ClassLoader 看不到 NMI 的类，但 ModList 可以正确判断 Mod 是否安装。
+     * <p>
+     * 如果 NMI 安装了但类链接失败（ClassLoader 隔离），会在首次调用 NMI API 时
+     * 动态将 available 置为 false，避免重复尝试。
      */
     private static boolean isAvailable() {
+        if (available != null && !available) {
+            return false; // 已确认不可用，快速短路
+        }
         if (available == null) {
             synchronized (MystiasIzakayaEconomyBackend.class) {
                 if (available == null) {
-                    boolean ok;
-                    try {
-                        Class.forName(NeoMystiasIzakaya.class.getName(), false,
-                                MystiasIzakayaEconomyBackend.class.getClassLoader());
-                        // 触发类链接验证：访问常量字段防止编译期擦除
-                        Object ignored = NMIBalanceUnits.EN;
-                        ok = ignored != null;
-                    } catch (Throwable e) {
-                        ok = false;
-                    }
-                    available = ok;
-                    if (ok) {
+                    available = net.neoforged.fml.ModList.get().isLoaded("neo_mystias_izakaya");
+                    if (available) {
                         HarvistasTradingTable.LOGGER.info(
                                 "NeoMystiasIzakaya economy backend detected and available.");
                     } else {
@@ -399,6 +404,18 @@ public final class MystiasIzakayaEconomyBackend {
             }
         }
         return available;
+    }
+
+    /**
+     * 当链接 NMI 类失败时（ClassLoader 隔离），将 available 置为 false 并记录告警。
+     * 之后所有方法会走 isAvailable() 的快速短路分支返回安全默认值。
+     */
+    private static void markUnavailableDueToLinkageError(LinkageError e) {
+        available = false;
+        HarvistasTradingTable.LOGGER.error(
+                "NMI classes could not be linked (ClassLoader isolation?). "
+                        + "MYSTIAS_IZAKAYA currency backend disabled. "
+                        + "Error: {}", e.toString());
     }
 
     // --- internal: 离线 NBT 读取 ---
