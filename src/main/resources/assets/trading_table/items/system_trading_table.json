@@ -1,0 +1,6 @@
+{
+	"model": {
+		"type": "minecraft:model",
+		"model": "trading_table:item/system_trading_table"
+	}
+}

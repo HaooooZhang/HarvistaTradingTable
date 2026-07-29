@@ -29,11 +29,11 @@ public final class TTBlocks {
             "system_trading_table",
             BlockSystemTradingTable::new,
             () -> BlockBehaviour.Properties
-                    .ofFullCopy(Blocks.IRON_BLOCK)
+                    .ofFullCopy(Blocks.COPPER_BLOCK)
                     .strength(5F)
                     .explosionResistance(1200f)
                     .lightLevel(state -> state.getValue(BlockSystemTradingTable.INITIALIZED) ? 7 : 0)
-                    .sound(SoundType.METAL)
+                    .sound(SoundType.COPPER)
                     .noOcclusion()
                     .requiresCorrectToolForDrops()
     );
