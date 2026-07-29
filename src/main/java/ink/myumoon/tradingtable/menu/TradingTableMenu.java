@@ -407,7 +407,9 @@ public class TradingTableMenu extends AbstractContainerMenu {
                     this.cachedEnabled = table.isEnabled() ? 1 : 0;
                     this.cacheInitialized = true;
                 }
-                this.cachedCashierBalance = Math.max(0.0D, table.getCurrencyBalance());
+                if (!level.isClientSide()) {
+                    this.cachedCashierBalance = Math.max(0.0D, table.getCurrencyBalance());
+                }
                 this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
             }
         });

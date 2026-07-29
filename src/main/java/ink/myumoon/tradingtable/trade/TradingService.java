@@ -139,15 +139,17 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
-        //执行交易
-        if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
-            return TradeResult.fail("message.trading_table.stock_too_low", true);
-        }
+        // 先扣玩家货币，库存操作失败时返还等价值货币，避免库存或货币单边变化
         boolean removed = ConversionService.isEnabled()
                 ? removeMixedCurrencyFromPlayer(player, gross)
                 : removeFromPlayer(player, currency, gross);
         if (!removed) {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
+        }
+
+        if (!removeFromHandler(table.getInventoryHandler(), tradeItem, amount)) {
+            giveCurrencyToPlayer(player, currency, gross);
+            return TradeResult.fail("message.trading_table.stock_too_low", true);
         }
 
         giveToPlayer(player, new ItemStack(tradeItem, amount));
@@ -256,17 +258,21 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.owner_currency_not_enough_for_request", false);
         }
 
-        // 执行交易
+        if (!table.tryWithdrawCurrency(gross)) {
+            return TradeResult.fail("message.trading_table.owner_currency_too_low", false);
+        }
+
+        // 余额先扣除；后续库存或玩家物品操作失败时恢复余额
         ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
         if (!remainder.isEmpty()) {
+            table.depositCurrency(gross);
             return TradeResult.fail("message.trading_table.stock_full", false);
         }
 
         if (!removeFromPlayer(player, tradeItem, amount)) {
+            removeFromHandler(table.getInventoryHandler(), tradeItem, amount);
+            table.depositCurrency(gross);
             return TradeResult.fail("message.trading_table.player_item_too_low", false);
-        }
-        if (!table.tryWithdrawCurrency(gross)) {
-            return TradeResult.fail("message.trading_table.owner_currency_too_low", true);
         }
 
         giveCurrencyToPlayer(player, Config.getCurrencyItem(), net);
@@ -304,6 +310,7 @@ public final class TradingService {
             return false;
         }
         long remaining = wholeAmount;
+        boolean changed = false;
         for (int i = 0; i < player.getInventory().getNonEquipmentItems().size() && remaining > 0; i++) {
             ItemStack stack = player.getInventory().getNonEquipmentItems().get(i);
             if (!stack.is(item)) {
@@ -312,6 +319,10 @@ public final class TradingService {
             int remove = (int) Math.min(remaining, stack.getCount());
             stack.shrink(remove);
             remaining -= remove;
+            changed |= remove > 0;
+        }
+        if (changed) {
+            player.getInventory().setChanged();
         }
         return remaining == 0L;
     }
@@ -350,6 +361,7 @@ public final class TradingService {
         long changeValue = totalPaymentValue - wholeAmount;
 
         // 从玩家背包扣除支付的货币
+        boolean changed = false;
         for (ItemStack need : toConsume) {
             int remaining = need.getCount();
             for (int i = 0; i < player.getInventory().getNonEquipmentItems().size() && remaining > 0; i++) {
@@ -360,10 +372,18 @@ public final class TradingService {
                 int remove = Math.min(remaining, stack.getCount());
                 stack.shrink(remove);
                 remaining -= remove;
+                changed |= remove > 0;
             }
             if (remaining > 0) {
+                if (changed) {
+                    player.getInventory().setChanged();
+                }
                 return false;
             }
+        }
+
+        if (changed) {
+            player.getInventory().setChanged();
         }
 
         // 如果有找零，转换为物品并返还给玩家

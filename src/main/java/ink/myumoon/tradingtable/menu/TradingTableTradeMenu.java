@@ -229,7 +229,9 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 this.cachedStock = table.getTradeStockCount();
                 this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
 
-                this.cachedCurrencyBalance = Math.max(0.0D, table.getCurrencyBalance());
+                if (!level.isClientSide()) {
+                    this.cachedCurrencyBalance = Math.max(0.0D, table.getCurrencyBalance());
+                }
                 if (this.requestedAmount < this.cachedMin) {
                     this.requestedAmount = this.cachedMin;
                 }

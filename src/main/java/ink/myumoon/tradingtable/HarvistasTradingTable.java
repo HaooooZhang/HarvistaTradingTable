@@ -37,28 +37,30 @@ public class HarvistasTradingTable {
             // NMI 模式：结算离线待处理余额，并入 TradeNoticeService 统一通知
             if (Config.isMystiasIzakayaMode()) {
                 MystiasIzakayaPendingBalance pending = MystiasIzakayaPendingBalance.get(player.level().getServer());
-                int netDelta = pending.drain(player.getUUID());
+                int netDelta = pending.getNetDelta(player.getUUID());
                 if (netDelta != 0) {
                     TradeNoticeService notice = TradeNoticeService.get(player.level().getServer());
                     if (netDelta > 0) {
                         // 上线后入账：仅当 addBalance 完全成功才发收入通知
                         if (MystiasIzakayaEconomyBackend.addBalance(player, netDelta)) {
+                            pending.drain(player.getUUID());
                             notice.accumulateForNotice(player.getUUID(), false, netDelta);
                         } else {
                             LOGGER.warn(
                                     "Failed to settle pending NMI credit of {} EN for player {} (event canceled by NMI); "
-                                            + "the pending delta was already drained and lost.",
+                                            + "the pending delta was retained for retry.",
                                     netDelta, player.getUUID());
                         }
                     } else {
-                        // 上线后扣款：玩家下线期间通过贸易台发生了出账。优先尝试扣款；若余额不足则沉没损失
+                        // 上线后扣款：玩家下线期间通过贸易台发生了出账。扣款失败时保留缓存重试。
                         int toSubtract = -netDelta;
                         if (MystiasIzakayaEconomyBackend.subtractBalance(player, toSubtract)) {
+                            pending.drain(player.getUUID());
                             notice.accumulateForNotice(player.getUUID(), true, toSubtract);
                         } else {
                             LOGGER.warn(
                                     "Failed to settle pending NMI debit of {} EN for player {} "
-                                            + "(insufficient balance or event canceled); the pending delta was already drained and lost.",
+                                            + "(insufficient balance or event canceled); the pending delta was retained for retry.",
                                     toSubtract, player.getUUID());
                         }
                     }

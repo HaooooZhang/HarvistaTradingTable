@@ -2,9 +2,6 @@ package ink.myumoon.tradingtable.economy;
 
 import com.mojang.logging.LogUtils;
 import icu.gensoukyo.neo_mystias_izakaya.common.util.NMICommonBalanceUtil;
-import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalance;
-import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceEntry;
-import icu.gensoukyo.neo_mystias_izakaya.content.economy.balance.NMIBalanceUnits;
 import ink.myumoon.tradingtable.HarvistasTradingTable;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -45,7 +42,7 @@ public final class MystiasIzakayaEconomyBackend {
     /** NMI Attachment NBT key（BALANCE 附件持久化到玩家 .dat 的路径段） */
     private static final String ATTACHMENT_KEY = "neo_mystias_izakaya:balance";
 
-    /** EN 货币单位的 identifier 字符串（仅用作离线 NBT 读取时的比对；在线时使用 {@link NMIBalanceUnits#EN}） */
+    /** EN 货币单位的 identifier 字符串（仅用作离线 NBT 读取时的比对） */
     private static final String EN_UNIT_ID = "neo_mystias_izakaya:en";
 
     /** 货币显示用的 NMI 翻译键（与 NMI 自身的交易日志显示一致） */
@@ -213,7 +210,7 @@ public final class MystiasIzakayaEconomyBackend {
 
     /**
      * 直接增加在线玩家余额（已有 Player 实例时使用）。
-     * 调用 NMI {@link NMICommonBalanceUtil#insertEn}，使用 SALE（卖出/收入）作为交易原因。
+    * 调用 NMI 26.1.7 官方 {@link NMICommonBalanceUtil#insertEn} API，实际写入玩家 Attachment。
      *
      * @param player 在线玩家
      * @param amount 金额（正数）
@@ -224,37 +221,17 @@ public final class MystiasIzakayaEconomyBackend {
     }
 
     /**
-     * 同 {@link #addBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
-     * <p>
-     * <b>绕过 NMI insertEn 的 Identifier == bug：</b>
-     * NMI 的 {@code NMIBalance.isValid()} 用 {@code ==} 而非 {@code equals()} 比较 Identifier，
-     * 导致对 NBT 反序列化的余额条目操作全部失败。此处直接操作 {@link NMIBalance} 对象来规避。
+    * 同 {@link #addBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
      */
     public static ChangeResult addBalanceDetailed(Player player, int amount) {
         if (!isAvailable() || player == null || amount <= 0) {
             return ChangeResult.fullFailure(amount);
         }
         try {
-            NMIBalance balance = NMICommonBalanceUtil.getWithOutCopy(player);
-            java.util.List<NMIBalanceEntry> entries = balance.getEntries();
-
-            // 查找已存在的 EN 条目（用 .equals() 的 is() 方法，不受 NMI 的 == bug 影响）
-            for (NMIBalanceEntry entry : entries) {
-                if (entry.is(NMIBalanceUnits.EN)) {
-                    entry.setCount(entry.getCount() + amount);
-                    NMICommonBalanceUtil.set(player, balance);
-                    LOGGER.debug("NMI addBalance (direct): player={} amount={} newCount={}",
-                            player.getName().getString(), amount, entry.getCount());
-                    return ChangeResult.fullSuccess(amount);
-                }
-            }
-
-            // 没有 EN 条目：新建一个，插入到 EMPTY 之前
-            NMIBalanceEntry newEntry = new NMIBalanceEntry(NMIBalanceUnits.EN, amount);
-            entries.add(entries.size() - 1, newEntry); // EMPTY 始终在最后
-            NMICommonBalanceUtil.set(player, balance);
-            LOGGER.debug("NMI addBalance (direct,new): player={} amount={}", player.getName().getString(), amount);
-            return ChangeResult.fullSuccess(amount);
+            int applied = NMICommonBalanceUtil.insertEn(player, amount, false);
+            LOGGER.debug("NMI addBalance: player={} requested={} applied={}",
+                    player.getName().getString(), amount, applied);
+            return new ChangeResult(applied == amount, amount, applied);
         } catch (LinkageError e) {
             markUnavailableDueToLinkageError(e);
             return ChangeResult.fullFailure(amount);
@@ -266,7 +243,7 @@ public final class MystiasIzakayaEconomyBackend {
 
     /**
      * 直接减少在线玩家余额（已有 Player 实例时使用）。
-     * 调用 NMI {@link NMICommonBalanceUtil#extractEn}，使用 PURCHASE（购买/支出）作为交易原因。
+    * 调用 NMI 26.1.7 官方 {@link NMICommonBalanceUtil#extractEn} API，实际写入玩家 Attachment。
      * <p>
      * <b>注意：调用前应先用 {@link #getBalance(Player)} 检查余额；但即使预检通过，
      * 在异步事件 / 并发扣款下仍可能失败。本方法在余额不足时不会扣任何钱。</b>
@@ -280,10 +257,7 @@ public final class MystiasIzakayaEconomyBackend {
     }
 
     /**
-     * 同 {@link #subtractBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
-     * <p>
-     * <b>绕过 NMI extractEn 的 Identifier == bug：</b>
-     * 同 addBalanceDetailed，直接操作 NMIBalance 对象。
+    * 同 {@link #subtractBalance(Player, int)}，但返回详细结果以便上层回滚部分应用。
      */
     public static ChangeResult subtractBalanceDetailed(Player player, int amount) {
         if (!isAvailable() || player == null || amount <= 0) {
@@ -298,20 +272,10 @@ public final class MystiasIzakayaEconomyBackend {
                 return ChangeResult.fullFailure(amount);
             }
 
-            NMIBalance balance = NMICommonBalanceUtil.getWithOutCopy(player);
-            java.util.List<NMIBalanceEntry> entries = balance.getEntries();
-            for (NMIBalanceEntry entry : entries) {
-                if (entry.is(NMIBalanceUnits.EN)) {
-                    entry.setCount(entry.getCount() - amount);
-                    NMICommonBalanceUtil.set(player, balance);
-                    LOGGER.debug("NMI subtractBalance SUCCESS: player={} deducted={} newCount={}",
-                            player.getName().getString(), amount, entry.getCount());
-                    return ChangeResult.fullSuccess(amount);
-                }
-            }
-            // 没有 EN 条目但余额检查通过了（理论上不可能，getEn 会返回 0）
-            LOGGER.warn("NMI subtractBalance: EN entry not found despite getEn={}", current);
-            return ChangeResult.fullFailure(amount);
+            int applied = NMICommonBalanceUtil.extractEn(player, amount, false);
+            LOGGER.debug("NMI subtractBalance: player={} requested={} applied={}",
+                    player.getName().getString(), amount, applied);
+            return new ChangeResult(applied == amount, amount, applied);
         } catch (LinkageError e) {
             markUnavailableDueToLinkageError(e);
             return ChangeResult.fullFailure(amount);
@@ -424,7 +388,7 @@ public final class MystiasIzakayaEconomyBackend {
      * 从玩家 .dat 文件中读取 NMI EN 余额。
      * NBT 路径：{@code neoforge:attachments}."neo_mystias_izakaya:balance" → entries[] → {item, count}
      * <p>
-     * 该结构对应 {@link NMIBalance#getEntries()} 的 {@link NMIBalanceEntry#MAP_CODEC} 序列化格式。
+    * 该结构对应 NMI BALANCE Attachment 的序列化格式。
      * <p>
      * <b>注意：NBT 反映的是玩家最后一次保存（退出或自动保存）时的状态，可能滞后真实余额数分钟，
      * 仅适合作为离线预检参考。</b>
