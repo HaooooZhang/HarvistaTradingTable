@@ -85,7 +85,6 @@ public final class SystemTradingService {
             return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
-        // 先扣玩家货币；系统发放物品失败时返还等价值货币
         boolean removed = ConversionService.isEnabled()
                 ? TradingService.removeMixedCurrencyFromPlayer(player, gross)
                 : TradingService.removeFromPlayer(player, currency, gross);
@@ -93,7 +92,6 @@ public final class SystemTradingService {
             return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
-        // 系统库存无限，但保留回滚结构，防止物品生成路径出现异常
         TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
         TradingService.grantTradeAdvancement(player);
         return TradingService.TradeResult.success("message.trading_table.trade_success");
