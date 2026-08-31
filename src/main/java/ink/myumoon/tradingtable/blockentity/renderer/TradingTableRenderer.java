@@ -44,8 +44,9 @@ public class TradingTableRenderer implements BlockEntityRenderer<TradingTableBlo
 
         // 浮动动画预计算（partialTick 只在 extractRenderState 可用）
         if (state.level != null) {
-            float animTicks = state.level.getGameTime() + partialTicks;
-            state.floatOffset = Mth.sin((float) (animTicks * (Math.PI * 2.0D) / FLOAT_PERIOD_TICKS)) * FLOAT_AMPLITUDE;
+            long cycleTicks = state.level.getGameTime() % (long) FLOAT_PERIOD_TICKS;
+            float phase = (cycleTicks + partialTicks) / FLOAT_PERIOD_TICKS;
+            state.floatOffset = Mth.sin(phase * ((float) (Math.PI * 2.0D))) * FLOAT_AMPLITUDE;
         } else {
             state.floatOffset = 0.0F;
         }
