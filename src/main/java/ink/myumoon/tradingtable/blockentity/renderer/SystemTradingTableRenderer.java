@@ -16,7 +16,6 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -36,7 +35,7 @@ public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTra
                                    float partialTicks, Vec3 cameraPosition, ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTicks, cameraPosition, breakProgress);
 
-        state.tradeItem = blockEntity.getTradeItem();
+        state.tradeItem = blockEntity.getTradeItemStack();
         state.enabled = blockEntity.isEnabled();
         state.initialized = blockEntity.isInitialized();
         state.level = blockEntity.getLevel();
@@ -51,9 +50,9 @@ public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTra
         }
 
         state.itemRenderState.clear();
-        if (state.tradeItem != null && state.enabled && state.initialized) {
+        if (!state.tradeItem.isEmpty() && state.enabled && state.initialized) {
             itemModelResolver.updateForNonLiving(state.itemRenderState,
-                    new ItemStack(state.tradeItem), ItemDisplayContext.FIXED, Minecraft.getInstance().player);
+                    state.tradeItem, ItemDisplayContext.FIXED, Minecraft.getInstance().player);
         }
     }
 
@@ -65,7 +64,7 @@ public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTra
     @Override
     public void submit(SystemTradingTableBlockEntityRenderState state, PoseStack poseStack,
                        SubmitNodeCollector collector, CameraRenderState cameraState) {
-        if (!state.enabled || !state.initialized || state.tradeItem == null || state.itemRenderState.isEmpty()) {
+        if (!state.enabled || !state.initialized || state.tradeItem.isEmpty() || state.itemRenderState.isEmpty()) {
             return;
         }
 
@@ -78,7 +77,7 @@ public class SystemTradingTableRenderer implements BlockEntityRenderer<SystemTra
         poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
 
         // 方块物品在 FIXED 上下文中朝向相反，补 180° 翻转
-        if (state.tradeItem instanceof BlockItem) {
+        if (state.tradeItem.getItem() instanceof BlockItem) {
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
         }
 

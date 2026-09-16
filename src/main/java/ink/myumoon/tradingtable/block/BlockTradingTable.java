@@ -56,7 +56,6 @@ public class BlockTradingTable extends Block implements EntityBlock {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof TradingTableBlockEntity tradingTableBlockEntity) {
                 if (!tradingTableBlockEntity.isInitialized()) {
-                    tradingTableBlockEntity.setOwnerIfAbsent(player);
                     tradingTableBlockEntity.setOpenMenuMode(OpenMenuMode.INIT);
                     serverPlayer.openMenu(tradingTableBlockEntity);
                     return InteractionResult.SUCCESS;

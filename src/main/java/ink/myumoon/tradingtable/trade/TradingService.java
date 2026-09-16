@@ -45,8 +45,8 @@ public final class TradingService {
                 "executeTrade: backend={} isBuyOrder={} unitPrice={} amount={}",
                 Config.getCurrencyBackend(), table.isBuyOrder(), table.getUnitPrice(), amount);
 
-        Item tradeItem = table.getTradeItem();
-        if (tradeItem == null) {
+        ItemStack tradeItem = table.getTradeItemStack();
+        if (tradeItem.isEmpty()) {
             return TradeResult.fail("message.trading_table.invalid_trade_item", true);
         }
 
@@ -67,8 +67,8 @@ public final class TradingService {
     }
 
     // 售出处理
-    private static TradeResult executeSellOrder(Player player, TradingTableBlockEntity table, Item tradeItem, int amount,
-                                                int minAmount, double gross, double net) {
+    private static TradeResult executeSellOrder(Player player, TradingTableBlockEntity table, ItemStack tradeItem, int amount,
+                                                 int minAmount, double gross, double net) {
         // 检查库存
         int stock = countInHandler(table.getInventoryHandler(), tradeItem);
         if (stock < minAmount) {
@@ -99,7 +99,7 @@ public final class TradingService {
             }
 
             // 3. 把物品发给玩家；owner 入账 net
-            giveToPlayer(player, new ItemStack(tradeItem, amount));
+            giveToPlayer(player, tradeItem.copyWithCount(amount));
             table.depositCurrency(intNet);
             if (player.level() instanceof ServerLevel serverLevel) {
                 TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
@@ -120,7 +120,7 @@ public final class TradingService {
             if (!NeoEssentialsEconomyBackend.subtractBalance(player.getUUID(), gross)) {
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
-            giveToPlayer(player, new ItemStack(tradeItem, amount));
+            giveToPlayer(player, tradeItem.copyWithCount(amount));
             table.depositCurrency(net);
             if (player.level() instanceof ServerLevel serverLevel) {
                 TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
@@ -150,7 +150,7 @@ public final class TradingService {
             return TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
-        giveToPlayer(player, new ItemStack(tradeItem, amount));
+        giveToPlayer(player, tradeItem.copyWithCount(amount));
         table.depositCurrency(net);
         if (player.level() instanceof ServerLevel serverLevel) {
             TradeNoticeService.sendTradeNotice(serverLevel, table, player, amount, gross, net);
@@ -160,7 +160,7 @@ public final class TradingService {
     }
 
     // 购买处理
-    private static TradeResult executeBuyOrder(Player player, TradingTableBlockEntity table, Item tradeItem, int amount,
+    private static TradeResult executeBuyOrder(Player player, TradingTableBlockEntity table, ItemStack tradeItem, int amount,
                                                int minAmount, double gross, double net) {
         //检查玩家库存
         int playerItems = countInPlayer(player, tradeItem);
@@ -172,7 +172,7 @@ public final class TradingService {
         }
 
         // 检查交易站库存容量（先模拟，避免部分写入）
-        ItemStack simulatedRemainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), true);
+        ItemStack simulatedRemainder = insertIntoHandler(table.getInventoryHandler(), tradeItem.copyWithCount(amount), true);
         if (!simulatedRemainder.isEmpty()) {
             return TradeResult.fail("message.trading_table.stock_full", false);
         }
@@ -192,7 +192,7 @@ public final class TradingService {
             }
 
             // 把玩家物品注入交易台库存
-            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
+            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), tradeItem.copyWithCount(amount), false);
             if (!remainder.isEmpty()) {
                 // 回滚 owner 扣款
                 table.depositCurrency(intGross);
@@ -208,7 +208,7 @@ public final class TradingService {
             // 玩家拿到净收入
             if (!MystiasIzakayaEconomyBackend.addBalance(player, intNet)) {
                 // 入账失败，理论上 insert 不会失败。回滚全部状态。
-                giveToPlayer(player, new ItemStack(tradeItem, amount));
+                giveToPlayer(player, tradeItem.copyWithCount(amount));
                 removeFromHandler(table.getInventoryHandler(), tradeItem, amount);
                 table.depositCurrency(intGross);
                 return TradeResult.fail("message.trading_table.player_currency_too_low", false);
@@ -229,7 +229,7 @@ public final class TradingService {
                 return TradeResult.fail("message.trading_table.owner_currency_not_enough_for_request", false);
             }
 
-            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
+            ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), tradeItem.copyWithCount(amount), false);
             if (!remainder.isEmpty()) {
                 return TradeResult.fail("message.trading_table.stock_full", false);
             }
@@ -257,7 +257,7 @@ public final class TradingService {
         }
 
         // 执行交易
-        ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), new ItemStack(tradeItem, amount), false);
+        ItemStack remainder = insertIntoHandler(table.getInventoryHandler(), tradeItem.copyWithCount(amount), false);
         if (!remainder.isEmpty()) {
             return TradeResult.fail("message.trading_table.stock_full", false);
         }
@@ -287,11 +287,33 @@ public final class TradingService {
         return total;
     }
 
+    public static int countInPlayer(Player player, ItemStack template) {
+        int total = 0;
+        for (ItemStack stack : player.getInventory().getNonEquipmentItems()) {
+            if (ItemStackMatch.matches(stack, template)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
     public static int countInHandler(ItemStacksResourceHandler handler, Item item) {
         int total = 0;
         for (int i = 0; i < handler.size(); i++) {
             ItemStack stack = handler.copyToList().get(i);
             if (stack.is(item)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
+    public static int countInHandler(ItemStacksResourceHandler handler, ItemStack template) {
+        int total = 0;
+        List<ItemStack> contents = handler.copyToList();
+        for (int i = 0; i < handler.size(); i++) {
+            ItemStack stack = contents.get(i);
+            if (ItemStackMatch.matches(stack, template)) {
                 total += stack.getCount();
             }
         }
@@ -307,6 +329,25 @@ public final class TradingService {
         for (int i = 0; i < player.getInventory().getNonEquipmentItems().size() && remaining > 0; i++) {
             ItemStack stack = player.getInventory().getNonEquipmentItems().get(i);
             if (!stack.is(item)) {
+                continue;
+            }
+            int remove = (int) Math.min(remaining, stack.getCount());
+            stack.shrink(remove);
+            remaining -= remove;
+        }
+        return remaining == 0L;
+    }
+
+    public static boolean removeFromPlayer(Player player, ItemStack template, double amount) {
+        long wholeAmount = (long) Math.floor(amount);
+        if (wholeAmount <= 0L) {
+            return false;
+        }
+        long remaining = wholeAmount;
+        List<ItemStack> contents = player.getInventory().getNonEquipmentItems();
+        for (int i = 0; i < contents.size() && remaining > 0; i++) {
+            ItemStack stack = contents.get(i);
+            if (!ItemStackMatch.matches(stack, template)) {
                 continue;
             }
             int remove = (int) Math.min(remaining, stack.getCount());
@@ -388,6 +429,25 @@ public final class TradingService {
         for (int i = 0; i < handler.size() && remaining > 0; i++) {
             ItemStack stack = handler.copyToList().get(i);
             if (!stack.is(item)) {
+                continue;
+            }
+            int remove = Math.min(remaining, stack.getCount());
+            ItemResource resource = ItemResource.of(stack);
+            try (Transaction tx = Transaction.openRoot()) {
+                int extracted = handler.extract(i, resource, remove, tx);
+                tx.commit();
+                remaining -= extracted;
+            }
+        }
+        return remaining == 0;
+    }
+
+    public static boolean removeFromHandler(ItemStacksResourceHandler handler, ItemStack template, int amount) {
+        int remaining = amount;
+        List<ItemStack> contents = handler.copyToList();
+        for (int i = 0; i < handler.size() && remaining > 0; i++) {
+            ItemStack stack = contents.get(i);
+            if (!ItemStackMatch.matches(stack, template)) {
                 continue;
             }
             int remove = Math.min(remaining, stack.getCount());

@@ -7,7 +7,6 @@ import ink.myumoon.tradingtable.menu.SystemTradingTableTradeMenu;
 import ink.myumoon.tradingtable.menu.SystemTradingTableMenu;
 import ink.myumoon.tradingtable.registries.TTBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -25,7 +24,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -46,6 +44,7 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
     private static final String TAG_IS_ENABLED = "IsEnabled";
     private static final String TAG_TABLE_NAME = "TableName";
     private static final String TAG_TRADE_ITEM = "TradeItem";
+    private static final String TAG_TRADE_ITEM_STACK = "TradeItemStack";
     private static final String TAG_IS_BUY_ORDER = "IsBuyOrder";
     private static final String TAG_MIN_TRADE_AMOUNT = "MinTradeAmount";
     private static final String TAG_UNIT_PRICE = "UnitPrice";
@@ -53,7 +52,7 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
     private boolean initialized;
     private boolean enabled;
     private String tableName = "";
-    private Item tradeItem = null;
+    private ItemStack tradeItemStack = ItemStack.EMPTY;
     private boolean buyOrder;
     private int minTradeAmount = 1;
     private long unitPrice = 1L;
@@ -137,13 +136,14 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
         this.setChanged();
     }
 
-    @Nullable
-    public Item getTradeItem() {
-        return this.tradeItem;
+    public ItemStack getTradeItemStack() {
+        return this.tradeItemStack;
     }
 
-    public void setTradeItem(@Nullable Item tradeItem) {
-        this.tradeItem = tradeItem;
+    public void setTradeItemStack(@Nullable ItemStack tradeItemStack) {
+        this.tradeItemStack = (tradeItemStack == null || tradeItemStack.isEmpty())
+                ? ItemStack.EMPTY
+                : tradeItemStack.copyWithCount(1);
         this.setChanged();
     }
 
@@ -174,9 +174,9 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
     public boolean initializeDefaultsFrom(Player player) {
         ItemStack configured = this.inventory.copyToList().getFirst();
         if (!configured.isEmpty()) {
-            this.tradeItem = configured.getItem();
-        } else if (this.tradeItem == null && !player.getMainHandItem().isEmpty()) {
-            this.tradeItem = player.getMainHandItem().getItem();
+            this.tradeItemStack = configured.copyWithCount(1);
+        } else if (this.tradeItemStack.isEmpty() && !player.getMainHandItem().isEmpty()) {
+            this.tradeItemStack = player.getMainHandItem().copyWithCount(1);
         }
         if (this.minTradeAmount <= 0) {
             this.minTradeAmount = 1;
@@ -195,11 +195,11 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
     public boolean canFinalizeInitialization(@Nullable Player player) {
         ItemStack configured = this.inventory.copyToList().getFirst();
         if (!configured.isEmpty()) {
-            this.tradeItem = configured.getItem();
-        } else if (this.tradeItem == null && player != null && !player.getMainHandItem().isEmpty()) {
-            this.tradeItem = player.getMainHandItem().getItem();
+            this.tradeItemStack = configured.copyWithCount(1);
+        } else if (this.tradeItemStack.isEmpty() && player != null && !player.getMainHandItem().isEmpty()) {
+            this.tradeItemStack = player.getMainHandItem().copyWithCount(1);
         }
-        return this.tradeItem != null && this.minTradeAmount > 0 && this.unitPrice > 0;
+        return !this.tradeItemStack.isEmpty() && this.minTradeAmount > 0 && this.unitPrice > 0;
     }
 
     public boolean finalizeInitialization(Player player) {
@@ -304,8 +304,8 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
 
         return switch (openingMode) {
             case INIT -> new SystemTradingTableInitMenu(containerId, playerInventory, this.inventory, access);
-            case TRADE -> new SystemTradingTableTradeMenu(containerId, playerInventory, this.inventory, access);
-            case MANAGE -> new SystemTradingTableMenu(containerId, playerInventory, this.inventory, access, this.canManage(player));
+            case TRADE -> new SystemTradingTableTradeMenu(containerId, playerInventory, this.inventory, access, this::getTradeItemStack);
+            case MANAGE -> new SystemTradingTableMenu(containerId, playerInventory, this.inventory, access, this.canManage(player), this::getTradeItemStack);
         };
     }
 
@@ -320,12 +320,7 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
         this.minTradeAmount = input.getIntOr(TAG_MIN_TRADE_AMOUNT,1);
         this.unitPrice = input.getLongOr(TAG_UNIT_PRICE, 1L);
 
-        Identifier tradeItemId = Identifier.tryParse(input.getStringOr(TAG_TRADE_ITEM,""));
-        if (tradeItemId != null && BuiltInRegistries.ITEM.containsKey(tradeItemId)) {
-            this.tradeItem = BuiltInRegistries.ITEM.get(tradeItemId).map(Holder.Reference::value).orElse(null);
-        } else {
-            this.tradeItem = null;
-        }
+        this.tradeItemStack = readTradeItemStack(input);
 
         input.readChild(TAG_INVENTORY, this.inventory);
     }
@@ -337,14 +332,29 @@ public class SystemTradingTableBlockEntity extends BlockEntity implements MenuPr
         output.putBoolean(TAG_IS_INITIALIZED, this.initialized);
         output.putBoolean(TAG_IS_ENABLED, this.enabled);
         output.putString(TAG_TABLE_NAME, this.tableName);
-        if (this.tradeItem != null) {
-            output.putString(TAG_TRADE_ITEM, BuiltInRegistries.ITEM.getKey(this.tradeItem).toString());
+        if (!this.tradeItemStack.isEmpty()) {
+            output.store(TAG_TRADE_ITEM_STACK, ItemStack.CODEC, this.tradeItemStack.copyWithCount(1));
         }
         output.putBoolean(TAG_IS_BUY_ORDER, this.buyOrder);
         output.putInt(TAG_MIN_TRADE_AMOUNT, this.minTradeAmount);
         output.putLong(TAG_UNIT_PRICE, this.unitPrice);
 
         output.putChild(TAG_INVENTORY, this.inventory);
+    }
+
+    // 优先读取完整物品堆栈；旧存档仅存有物品注册名，回退构造默认组件堆栈
+    private static ItemStack readTradeItemStack(ValueInput input) {
+        ItemStack stored = input.read(TAG_TRADE_ITEM_STACK, ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        if (!stored.isEmpty()) {
+            return stored.copyWithCount(1);
+        }
+        Identifier legacyId = Identifier.tryParse(input.getStringOr(TAG_TRADE_ITEM, ""));
+        if (legacyId == null) {
+            return ItemStack.EMPTY;
+        }
+        return BuiltInRegistries.ITEM.get(legacyId)
+                .map(holder -> new ItemStack(holder.value()))
+                .orElse(ItemStack.EMPTY);
     }
 
     @Override

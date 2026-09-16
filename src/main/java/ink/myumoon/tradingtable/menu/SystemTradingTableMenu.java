@@ -3,7 +3,6 @@ package ink.myumoon.tradingtable.menu;
 import ink.myumoon.tradingtable.blockentity.SystemTradingTableBlockEntity;
 import ink.myumoon.tradingtable.registries.TTBlocks;
 import ink.myumoon.tradingtable.registries.TTMenuTypes;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -14,6 +13,9 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
+import org.jspecify.annotations.Nullable;
+
+import java.util.function.Supplier;
 
 public class SystemTradingTableMenu extends AbstractContainerMenu {
     public static final int INVENTORY_SLOTS = 1;
@@ -47,15 +49,17 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
     private static final int PLAYER_INV_Y = 128;
     private static final int HOTBAR_X = 8;
     private static final int HOTBAR_Y = 186;
+    private static final int HIDDEN_SYNC_SLOT_X = -10000;
+    private static final int HIDDEN_SYNC_SLOT_Y = -10000;
 
     private final ItemStacksResourceHandler inventory;
     private final ContainerLevelAccess access;
     private final boolean allowManage;
+    private final TradeItemSyncContainer tradeItemContainer;
     private int cachedMin = 1;
     private int cachedPrice = 1;
     private int cachedType = 0;
     private int cachedEnabled = 0;
-    private int cachedTradeItemId = -1;
     private boolean cacheInitialized;
     private boolean hasPendingManageChanges;
     private final StringBuilder pendingTableName = new StringBuilder();
@@ -69,8 +73,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
                 case 1 -> cachedPrice;
                 case 2 -> cachedType;
                 case 3 -> cachedEnabled;
-                case 4 -> cachedTradeItemId;
-                case 5 -> hasPendingManageChanges ? 1 : 0;
+                case 4 -> hasPendingManageChanges ? 1 : 0;
                 default -> 0;
             };
         }
@@ -82,8 +85,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
                 case 1 -> cachedPrice = value;
                 case 2 -> cachedType = value;
                 case 3 -> cachedEnabled = value;
-                case 4 -> cachedTradeItemId = value;
-                case 5 -> hasPendingManageChanges = value > 0;
+                case 4 -> hasPendingManageChanges = value > 0;
                 default -> {
                 }
             }
@@ -91,16 +93,16 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
 
         @Override
         public int getCount() {
-            return 6;
+            return 5;
         }
     };
 
     public SystemTradingTableMenu(int containerId, Inventory playerInventory) {
-        this(containerId, playerInventory, new ItemStacksResourceHandler(INVENTORY_SLOTS), ContainerLevelAccess.NULL, true);
+        this(containerId, playerInventory, new ItemStacksResourceHandler(INVENTORY_SLOTS), ContainerLevelAccess.NULL, true, null);
     }
 
     public SystemTradingTableMenu(int containerId, Inventory playerInventory, ItemStacksResourceHandler inventory,
-                                  ContainerLevelAccess access, boolean allowManage) {
+                                  ContainerLevelAccess access, boolean allowManage, @Nullable Supplier<ItemStack> tradeItemSource) {
         super(TTMenuTypes.SYSTEM_TRADING_TABLE_MANAGE.get(), containerId);
         if (inventory.size() != INVENTORY_SLOTS) {
             throw new IllegalStateException("Unexpected handler size for SystemTradingTableMenu");
@@ -109,6 +111,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
         this.inventory = inventory;
         this.access = access;
         this.allowManage = allowManage;
+        this.tradeItemContainer = new TradeItemSyncContainer(tradeItemSource);
         this.addDataSlots(this.viewData);
 
         this.addSlot(new ResourceHandlerSlot(inventory, inventory::set, 0, TRADE_ITEM_X, TRADE_ITEM_Y) {
@@ -135,6 +138,19 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col, HOTBAR_X + col * 18, HOTBAR_Y));
         }
+
+        // 贸易物品同步槽（不可见、只读），用于把完整物品组件同步到客户端
+        this.addSlot(new Slot(this.tradeItemContainer, 0, HIDDEN_SYNC_SLOT_X, HIDDEN_SYNC_SLOT_Y) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return false;
+            }
+
+            @Override
+            public boolean mayPickup(Player player) {
+                return false;
+            }
+        });
     }
 
     @Override
@@ -291,7 +307,7 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
                     player.sendOverlayMessage(Component.translatable("message.trading_table.invalid_trade_item"));
                     return false;
                 }
-                table.setTradeItem(configured.getItem());
+                table.setTradeItemStack(configured.copyWithCount(1));
                 player.sendOverlayMessage(Component.translatable("message.trading_table.trade_item_saved"));
                 return true;
             }
@@ -325,21 +341,19 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
     }
 
     public boolean hasUnsavedManageChanges() {
-        return this.viewData.get(5) == 1;
+        return this.viewData.get(4) == 1;
     }
 
     public boolean isTradeItemSelectionDirty() {
-        int savedTradeItemId = this.viewData.get(4);
         ItemStack configured = this.inventory.copyToList().getFirst();
+        ItemStack saved = this.tradeItemContainer.getItem(0);
         if (configured.isEmpty()) {
-            return savedTradeItemId != -1;
+            return !saved.isEmpty();
         }
-        return BuiltInRegistries.ITEM.getId(configured.getItem()) != savedTradeItemId;
-    }
-
-    public int getSavedTradeItemId() {
-        this.refreshFromBlockEntity();
-        return this.cachedTradeItemId;
+        if (saved.isEmpty()) {
+            return true;
+        }
+        return !ItemStack.isSameItemSameComponents(configured, saved);
     }
 
     private void refreshFromBlockEntity() {
@@ -352,7 +366,6 @@ public class SystemTradingTableMenu extends AbstractContainerMenu {
                     this.cachedEnabled = table.isEnabled() ? 1 : 0;
                     this.cacheInitialized = true;
                 }
-                this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
             }
         });
     }

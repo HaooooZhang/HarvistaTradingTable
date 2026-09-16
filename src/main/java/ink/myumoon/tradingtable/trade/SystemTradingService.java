@@ -21,8 +21,8 @@ public final class SystemTradingService {
             return TradingService.TradeResult.fail("message.trading_table.trade_disabled", false);
         }
 
-        Item tradeItem = table.getTradeItem();
-        if (tradeItem == null) {
+        ItemStack tradeItem = table.getTradeItemStack();
+        if (tradeItem.isEmpty()) {
             return TradingService.TradeResult.fail("message.trading_table.invalid_trade_item", true);
         }
 
@@ -48,7 +48,7 @@ public final class SystemTradingService {
      * 玩家支付 gross，系统直接生成物品给玩家。
      */
     private static TradingService.TradeResult executeSellOrder(Player player, SystemTradingTableBlockEntity table,
-                                                                Item tradeItem, int amount, int minAmount, double gross) {
+                                                                ItemStack tradeItem, int amount, int minAmount, double gross) {
         // MystiasIzakaya 模式：先原子扣款（失败不部分扣），再发物品；扣款失败时不生成物品
         if (Config.getCurrencyBackend() == CurrencyBackend.MYSTIAS_IZAKAYA) {
             int intGross = (int) Math.floor(gross);
@@ -57,7 +57,7 @@ public final class SystemTradingService {
             if (!paid.fullyApplied()) {
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
-            TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+            TradingService.giveToPlayer(player, tradeItem.copyWithCount(amount));
             TradingService.grantTradeAdvancement(player);
             return TradingService.TradeResult.success("message.trading_table.trade_success");
         }
@@ -71,7 +71,7 @@ public final class SystemTradingService {
             if (!NeoEssentialsEconomyBackend.subtractBalance(player.getUUID(), gross)) {
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
-            TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+            TradingService.giveToPlayer(player, tradeItem.copyWithCount(amount));
             TradingService.grantTradeAdvancement(player);
             return TradingService.TradeResult.success("message.trading_table.trade_success");
         }
@@ -92,7 +92,7 @@ public final class SystemTradingService {
             return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
         }
 
-        TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+        TradingService.giveToPlayer(player, tradeItem.copyWithCount(amount));
         TradingService.grantTradeAdvancement(player);
         return TradingService.TradeResult.success("message.trading_table.trade_success");
     }
@@ -103,7 +103,7 @@ public final class SystemTradingService {
      * 税收适用：玩家获得 net = gross - tax（税收沉没）。
      */
     private static TradingService.TradeResult executeBuyOrder(Player player, SystemTradingTableBlockEntity table,
-                                                               Item tradeItem, int amount, int minAmount,
+                                                               ItemStack tradeItem, int amount, int minAmount,
                                                                double gross, double net) {
         // 检查玩家库存
         int playerItems = TradingService.countInPlayer(player, tradeItem);
@@ -124,7 +124,7 @@ public final class SystemTradingService {
                     MystiasIzakayaEconomyBackend.addBalanceDetailed(player, intNet);
             if (!credited.fullyApplied()) {
                 // 入账失败，退还已扣的物品
-                TradingService.giveToPlayer(player, new ItemStack(tradeItem, amount));
+                TradingService.giveToPlayer(player, tradeItem.copyWithCount(amount));
                 return TradingService.TradeResult.fail("message.trading_table.player_currency_too_low", false);
             }
             TradingService.grantTradeAdvancement(player);

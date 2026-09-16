@@ -19,7 +19,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -183,9 +182,9 @@ public class SystemTradingTableTradeScreen extends AbstractContainerScreen<Syste
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
-        Item tradeItem = this.menu.getTradeItem();
-        if (tradeItem != null && this.isMouseOverTradeItemIcon(mouseX, mouseY)) {
-            graphics.setTooltipForNextFrame(getFont(), new ItemStack(tradeItem), mouseX, mouseY);
+        ItemStack tradeItem = this.menu.getTradeItemStack();
+        if (!tradeItem.isEmpty() && this.isMouseOverTradeItemIcon(mouseX, mouseY)) {
+            graphics.setTooltipForNextFrame(getFont(), tradeItem, mouseX, mouseY);
         }
 
         if (this.menu.isBuyOrder()) {
@@ -216,8 +215,8 @@ public class SystemTradingTableTradeScreen extends AbstractContainerScreen<Syste
         int boxLeft = this.leftPos + ICON_BOX_X;
         int boxTop = this.topPos + ICON_BOX_Y;
 
-        Item tradeItem = this.menu.getTradeItem();
-        if (tradeItem == null) {
+        ItemStack tradeItem = this.menu.getTradeItemStack();
+        if (tradeItem.isEmpty()) {
             graphics.centeredText(getFont(),
                     Component.literal("-"),
                     boxLeft + ICON_BOX_SIZE / 2,
@@ -229,7 +228,7 @@ public class SystemTradingTableTradeScreen extends AbstractContainerScreen<Syste
         graphics.pose().pushMatrix();
         graphics.pose().translate(boxLeft + ICON_RENDER_OFFSET, boxTop + ICON_RENDER_OFFSET);
         graphics.pose().scale(1.5F, 1.5F);
-        graphics.item(new ItemStack(tradeItem), 0, 0);
+        graphics.item(tradeItem, 0, 0);
         graphics.pose().popMatrix();
     }
 

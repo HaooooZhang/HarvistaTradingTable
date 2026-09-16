@@ -5,7 +5,6 @@ import ink.myumoon.tradingtable.trade.TradeNoticeService;
 import ink.myumoon.tradingtable.registries.TTBlocks;
 import ink.myumoon.tradingtable.registries.TTMenuTypes;
 import ink.myumoon.tradingtable.trade.TradingService;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Inventory;
@@ -16,9 +15,14 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import org.jspecify.annotations.Nullable;
+
+import java.util.function.Supplier;
 
 public class TradingTableTradeMenu extends AbstractContainerMenu {
     public static final int INVENTORY_SLOTS = 27;
+    private static final int HIDDEN_SYNC_SLOT_X = -10000;
+    private static final int HIDDEN_SYNC_SLOT_Y = -10000;
     public static final int BUTTON_EXECUTE = 0;
     public static final int BUTTON_TOGGLE_TYPE = 1;
     public static final int BUTTON_AMOUNT_PLUS = 2;
@@ -34,7 +38,7 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
     private int cachedPrice = 1;
     private int cachedType = 0;
     private int cachedStock = 0;
-    private int cachedTradeItemId = -1;
+    private final TradeItemSyncContainer tradeItemContainer;
     private double cachedCurrencyBalance = 0.0D;
     private int tempCurrencyHighBits;
     private int tempCurrencyLowBits;
@@ -50,11 +54,10 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 case 2 -> cachedPrice;
                 case 3 -> cachedType;
                 case 4 -> cachedStock;
-                case 5 -> cachedTradeItemId;
-                case 6 -> doubleToHighInt(cachedCurrencyBalance);
-                case 7 -> doubleToLowInt(cachedCurrencyBalance);
-                case 8 -> cachedTradeEventId;
-                case 9 -> cachedTradeResult;
+                case 5 -> doubleToHighInt(cachedCurrencyBalance);
+                case 6 -> doubleToLowInt(cachedCurrencyBalance);
+                case 7 -> cachedTradeEventId;
+                case 8 -> cachedTradeResult;
                 default -> 0;
             };
         }
@@ -67,17 +70,16 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 case 2 -> cachedPrice = value;
                 case 3 -> cachedType = value;
                 case 4 -> cachedStock = value;
-                case 5 -> cachedTradeItemId = value;
-                case 6 -> {
+                case 5 -> {
                     tempCurrencyHighBits = value;
                     cachedCurrencyBalance = intsToDouble(tempCurrencyHighBits, tempCurrencyLowBits);
                 }
-                case 7 -> {
+                case 6 -> {
                     tempCurrencyLowBits = value;
                     cachedCurrencyBalance = intsToDouble(tempCurrencyHighBits, tempCurrencyLowBits);
                 }
-                case 8 -> cachedTradeEventId = Math.max(0, value);
-                case 9 -> cachedTradeResult = value > 0 ? 1 : 0;
+                case 7 -> cachedTradeEventId = Math.max(0, value);
+                case 8 -> cachedTradeResult = value > 0 ? 1 : 0;
                 default -> {
                 }
             }
@@ -85,22 +87,23 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
 
         @Override
         public int getCount() {
-            return 10;
+            return 9;
         }
     };
 
     public TradingTableTradeMenu(int containerId, Inventory playerInventory) {
-        this(containerId, playerInventory, new ItemStacksResourceHandler(INVENTORY_SLOTS), ContainerLevelAccess.NULL);
+        this(containerId, playerInventory, new ItemStacksResourceHandler(INVENTORY_SLOTS), ContainerLevelAccess.NULL, null);
     }
 
     public TradingTableTradeMenu(int containerId, Inventory playerInventory, ItemStacksResourceHandler inventory,
-                                 ContainerLevelAccess access) {
+                                 ContainerLevelAccess access, @Nullable Supplier<ItemStack> tradeItemSource) {
         super(TTMenuTypes.TRADING_TABLE_TRADE.get(), containerId);
         if (inventory.size() != INVENTORY_SLOTS) {
             throw new IllegalStateException("Unexpected handler size for TradingTableTradeMenu");
         }
 
         this.access = access;
+        this.tradeItemContainer = new TradeItemSyncContainer(tradeItemSource);
         this.addDataSlots(this.viewData);
 
         // Player inventory (3x9)
@@ -115,6 +118,19 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
         for (int col = 0; col < 9; col++) {
             this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 166));
         }
+
+        // 贸易物品同步槽（不可见、只读），用于把完整物品组件同步到客户端
+        this.addSlot(new Slot(this.tradeItemContainer, 0, HIDDEN_SYNC_SLOT_X, HIDDEN_SYNC_SLOT_Y) {
+            @Override
+            public boolean mayPlace(ItemStack stack) {
+                return false;
+            }
+
+            @Override
+            public boolean mayPickup(Player player) {
+                return false;
+            }
+        });
     }
 
     @Override
@@ -202,9 +218,8 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
         return this.viewData.get(4);
     }
 
-    public net.minecraft.world.item.Item getTradeItem() {
-        int tradeItemId = this.viewData.get(5);
-        return tradeItemId < 0 ? null : BuiltInRegistries.ITEM.byId(tradeItemId);
+    public ItemStack getTradeItemStack() {
+        return this.tradeItemContainer.getItem(0);
     }
 
     public double getCurrencyBalance() {
@@ -213,11 +228,11 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
     }
 
     public int getTradeEventId() {
-        return this.viewData.get(8);
+        return this.viewData.get(7);
     }
 
     public boolean wasLastTradeSuccessful() {
-        return this.viewData.get(9) == 1;
+        return this.viewData.get(8) == 1;
     }
 
     private void refreshFromBlockEntity() {
@@ -227,7 +242,6 @@ public class TradingTableTradeMenu extends AbstractContainerMenu {
                 this.cachedPrice = (int) Math.min(Integer.MAX_VALUE, table.getUnitPrice());
                 this.cachedType = table.isBuyOrder() ? 1 : 0;
                 this.cachedStock = table.getTradeStockCount();
-                this.cachedTradeItemId = table.getTradeItem() == null ? -1 : BuiltInRegistries.ITEM.getId(table.getTradeItem());
 
                 if (!level.isClientSide()) {
                     this.cachedCurrencyBalance = Math.max(0.0D, table.getCurrencyBalance());
